@@ -5,7 +5,7 @@ session_start();
 // Test data (remove when login is implemented)
 $_SESSION['user_id'] = 1;
 
-require_once 'db_config.php';
+require_once __DIR__ . '/../db_config.php';
 
 // Get sponsor_id from request or session
 $sponsor_id = isset($_GET['sponsor_id']) ? intval($_GET['sponsor_id']) : 14;

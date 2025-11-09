@@ -16,7 +16,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Include database connection
-require_once 'db_config.php';
+require_once __DIR__ . '/../db_config.php';
 
 // Check if file was uploaded
 if (!isset($_FILES['profile_picture']) || $_FILES['profile_picture']['error'] === UPLOAD_ERR_NO_FILE) {

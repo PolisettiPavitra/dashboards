@@ -18,7 +18,7 @@ if ($sponsor_id === 0) {
 header('Content-Type: application/json');
 
 // Include database connection
-require_once 'db_config.php';
+require_once __DIR__ . '/../db_config.php';
 
 try {
     // Query to get all sponsored children for this sponsor

@@ -136,9 +136,17 @@ window.addEventListener('click', (e) => {
 // Update Sponsored Children Count
 async function updateDashboardCounts() {
     try {
-        console.log('Fetching sponsored children count...');
+        // Get sponsor_id from window global variable set by PHP
+        const sponsorId = window.SPONSOR_ID;
         
-        const response = await fetch('get_sponsored_children.php');
+        if (!sponsorId) {
+            console.error('✗ No sponsor_id available');
+            return;
+        }
+        
+        console.log('Fetching sponsored children count for sponsor_id:', sponsorId);
+        
+        const response = await fetch(`get_sponsored_children.php?sponsor_id=${sponsorId}`);
         console.log('Response status:', response.status);
         
         if (!response.ok) {
@@ -152,7 +160,7 @@ async function updateDashboardCounts() {
             const childrenCountEl = document.getElementById('childrenCount');
             if (childrenCountEl) {
                 const totalCount = result.stats.total_count;
-                childrenCountEl.textContent = `Total Sponsored: ${totalCount}`;
+                childrenCountEl.textContent = totalCount;
                 console.log('✓ Dashboard count updated to:', totalCount);
             } else {
                 console.error('✗ childrenCount element not found in DOM');
@@ -161,14 +169,14 @@ async function updateDashboardCounts() {
             console.error('✗ API returned error:', result.message);
             const childrenCountEl = document.getElementById('childrenCount');
             if (childrenCountEl) {
-                childrenCountEl.textContent = 'Error loading count';
+                childrenCountEl.textContent = 'Error';
             }
         }
     } catch (error) {
         console.error('✗ Error updating dashboard counts:', error);
         const childrenCountEl = document.getElementById('childrenCount');
         if (childrenCountEl) {
-            childrenCountEl.textContent = 'Total Sponsored: 0';
+            childrenCountEl.textContent = '0';
         }
     }
 }
@@ -176,10 +184,17 @@ async function updateDashboardCounts() {
 // Update Donation Stats
 async function updateDonationStats() {
     try {
-        console.log('Fetching donation stats...');
+        // Get sponsor_id from window global variable set by PHP
+        const sponsorId = window.SPONSOR_ID;
         
-        // Use sponsor_id = 14 for testing
-        const response = await fetch('get_donation_data.php?sponsor_id=14');
+        if (!sponsorId) {
+            console.error('✗ No sponsor_id available');
+            return;
+        }
+        
+        console.log('Fetching donation stats for sponsor_id:', sponsorId);
+        
+        const response = await fetch(`get_donation_data.php?sponsor_id=${sponsorId}`);
         console.log('Donation response status:', response.status);
         
         if (!response.ok) {
@@ -193,7 +208,7 @@ async function updateDonationStats() {
             const totalDonationsEl = document.getElementById('totalDonations');
             if (totalDonationsEl) {
                 const totalAmount = result.stats.total_amount;
-                totalDonationsEl.textContent = `Total Donated: ₹${totalAmount.toLocaleString('en-IN')}`;
+                totalDonationsEl.textContent = `₹${totalAmount.toLocaleString('en-IN')}`;
                 console.log('✓ Donation stats updated to:', totalAmount);
             } else {
                 console.error('✗ totalDonations element not found in DOM');
@@ -202,14 +217,14 @@ async function updateDonationStats() {
             console.error('✗ Donation API returned error:', result.message);
             const totalDonationsEl = document.getElementById('totalDonations');
             if (totalDonationsEl) {
-                totalDonationsEl.textContent = 'Error loading donations';
+                totalDonationsEl.textContent = 'Error';
             }
         }
     } catch (error) {
         console.error('✗ Error updating donation stats:', error);
         const totalDonationsEl = document.getElementById('totalDonations');
         if (totalDonationsEl) {
-            totalDonationsEl.textContent = 'Total Donated: ₹0';
+            totalDonationsEl.textContent = '₹0';
         }
     }
 }
@@ -217,6 +232,7 @@ async function updateDonationStats() {
 // Initialize dashboard counts when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, checking for dashboard elements...');
+    console.log('Sponsor ID from PHP:', window.SPONSOR_ID);
     
     // Update children count
     const childrenCountEl = document.getElementById('childrenCount');

@@ -5,7 +5,7 @@
  */
 
 session_start();
-require_once 'db_config.php';
+require_once __DIR__ . '/../db_config.php';
 
 // Set JSON header
 header('Content-Type: application/json');

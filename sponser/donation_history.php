@@ -5,7 +5,7 @@ session_start();
 $_SESSION['user_id'] = 1;
 $sponsor_id = 14;
 
-require_once 'db_config.php';
+require_once __DIR__ . '/../db_config.php';
 
 // Get sponsor details
 $stmt = $conn->prepare("SELECT first_name, last_name FROM sponsors WHERE sponsor_id = ?");
@@ -20,6 +20,7 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donation History</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -28,187 +29,267 @@ $stmt->close();
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #ffffff;
-            color: #211e27;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
             padding: 2rem;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Bright Yellow Splash/Aura Effects */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150%;
+            height: 150%;
+            background: radial-gradient(circle at center, rgba(255, 237, 160, 0.8) 0%, rgba(254, 249, 195, 0.6) 15%, rgba(255, 253, 240, 0.4) 30%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(80px);
+        }
+
+        /* Additional ambient glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(255, 243, 176, 0.5) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(120px);
         }
 
         .container {
             max-width: 1400px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
 
-        .page-header {
+        /* Back Button */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(254, 240, 138, 0.4);
+            color: #3f3f46;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 600;
             margin-bottom: 2rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px rgba(254, 240, 138, 0.15);
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 8px 16px rgba(254, 240, 138, 0.3);
+            border-color: rgba(254, 240, 138, 0.6);
+        }
+
+        /* Header Section */
+        .page-header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(254, 240, 138, 0.3);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
         }
 
         .page-title {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #1128ce;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #18181b;
+            letter-spacing: -0.02em;
             margin-bottom: 0.5rem;
         }
 
         .page-subtitle {
             font-size: 1rem;
-            color: #7462aa;
-        }
-
-        .back-btn {
-            display: inline-block;
-            background-color: #e9e9f1;
-            color: #211e27;
-            padding: 0.6rem 1.2rem;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 0.9rem;
+            color: #71717a;
             font-weight: 500;
-            margin-bottom: 1rem;
-            transition: all 0.3s;
-        }
-
-        .back-btn:hover {
-            background-color: #c4a391;
-            transform: translateX(-3px);
         }
 
         /* Summary Cards */
         .summary-section {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
 
         .summary-card {
-            background: linear-gradient(135deg, #1128ce, #374ace);
-            padding: 1.8rem;
-            border-radius: 10px;
-            color: white;
-            box-shadow: 0 4px 15px rgba(17, 40, 206, 0.2);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(254, 240, 138, 0.3);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .summary-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px rgba(254, 240, 138, 0.35);
         }
 
-        .summary-value {
-            font-size: 2rem;
-            font-weight: 700;
+        .summary-card.primary {
+            background: linear-gradient(135deg, rgba(254, 249, 195, 0.8), rgba(253, 230, 138, 0.7));
+            border: 1px solid rgba(254, 240, 138, 0.5);
         }
 
         .summary-card.accent {
-            background: linear-gradient(135deg, #fc1f0c, #ff4433);
+            background: linear-gradient(135deg, rgba(254, 243, 199, 0.8), rgba(253, 224, 71, 0.6));
+            border: 1px solid rgba(254, 240, 138, 0.5);
+        }
+
+        .summary-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #71717a;
+            margin-bottom: 0.75rem;
+        }
+
+        .summary-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #18181b;
         }
 
         /* Filter Section */
         .filter-section {
-            background-color: #e9e9f1;
-            padding: 1.5rem;
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(254, 240, 138, 0.3);
+            padding: 2rem;
+            border-radius: 20px;
             margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
         }
 
         .filter-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #1128ce;
-            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #18181b;
+            margin-bottom: 1.5rem;
         }
 
         .filters {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
         }
 
         .filter-group {
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
+            gap: 0.5rem;
         }
 
         .filter-label {
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             font-weight: 600;
-            color: #211e27;
+            color: #71717a;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
         }
 
         .filter-input {
-            padding: 0.7rem;
-            border: 2px solid #c4a391;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            background-color: white;
+            padding: 0.875rem 1rem;
+            border: 2px solid rgba(254, 240, 138, 0.4);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            background: rgba(255, 255, 255, 0.7);
             transition: all 0.3s;
         }
 
         .filter-input:focus {
             outline: none;
-            border-color: #374ace;
+            border-color: rgba(254, 240, 138, 0.8);
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 0 0 4px rgba(254, 249, 195, 0.3);
         }
 
         .filter-actions {
             display: flex;
             gap: 1rem;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
         }
 
         .btn {
-            padding: 0.7rem 1.5rem;
+            padding: 0.875rem 1.75rem;
             border: none;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            font-weight: 500;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .btn-primary {
-            background-color: #1128ce;
-            color: white;
+            background: linear-gradient(135deg, rgba(254, 249, 195, 0.9), rgba(253, 230, 138, 0.8));
+            color: #18181b;
+            border: 1px solid rgba(254, 240, 138, 0.5);
+            box-shadow: 0 4px 12px rgba(254, 240, 138, 0.3);
         }
 
         .btn-primary:hover {
-            background-color: #0d1fa3;
             transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(254, 240, 138, 0.5);
+            background: linear-gradient(135deg, rgba(254, 249, 195, 1), rgba(253, 230, 138, 0.9));
         }
 
         .btn-secondary {
-            background-color: #c4a391;
-            color: #211e27;
+            background: rgba(254, 240, 138, 0.2);
+            color: #3f3f46;
+            border: 2px solid rgba(254, 240, 138, 0.3);
         }
 
         .btn-secondary:hover {
-            background-color: #a88d7d;
+            background: rgba(254, 240, 138, 0.3);
         }
 
         /* Donation Table */
         .table-section {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(254, 240, 138, 0.3);
+            border-radius: 20px;
             overflow: hidden;
+            box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
         }
 
         .table-header {
-            background-color: #e9e9f1;
-            padding: 1.5rem;
-            border-bottom: 2px solid #c4a391;
+            padding: 2rem;
+            background: rgba(254, 252, 232, 0.4);
+            border-bottom: 2px solid rgba(254, 240, 138, 0.3);
         }
 
         .table-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1128ce;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #18181b;
         }
 
         .table-container {
@@ -221,76 +302,113 @@ $stmt->close();
         }
 
         thead {
-            background-color: #374ace;
-            color: white;
+            background: rgba(254, 252, 232, 0.5);
         }
 
         th {
-            padding: 1rem;
+            padding: 1.25rem 1.5rem;
             text-align: left;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+            color: #71717a;
         }
 
         tbody tr {
-            border-bottom: 1px solid #e9e9f1;
+            border-bottom: 1px solid rgba(254, 240, 138, 0.2);
             transition: all 0.2s;
         }
 
         tbody tr:hover {
-            background-color: #f8f8fc;
+            background: rgba(254, 252, 232, 0.4);
         }
 
         td {
-            padding: 1rem;
-            color: #211e27;
+            padding: 1.25rem 1.5rem;
+            color: #18181b;
+            font-size: 0.95rem;
         }
 
         .child-name {
-            font-weight: 600;
-            color: #1128ce;
+            font-weight: 700;
+            color: #3f3f46;
         }
 
         .amount {
-            font-weight: 700;
-            color: #fc1f0c;
-            font-size: 1.1rem;
+            font-weight: 800;
+            color: #18181b;
+            font-size: 1.125rem;
         }
 
         .payment-method {
             display: inline-block;
-            padding: 0.3rem 0.8rem;
+            padding: 0.375rem 0.875rem;
             border-radius: 20px;
             font-size: 0.8rem;
-            font-weight: 500;
-            background-color: #e9e9f1;
-            color: #7462aa;
+            font-weight: 600;
+            background: rgba(254, 249, 195, 0.5);
+            color: #3f3f46;
+            border: 1px solid rgba(254, 240, 138, 0.4);
         }
 
         .empty-state {
             text-align: center;
-            padding: 3rem;
-            color: #7462aa;
+            padding: 4rem 2rem;
         }
 
         .empty-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #18181b;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-message {
+            font-size: 1rem;
+            color: #71717a;
         }
 
         .loading {
             text-align: center;
-            padding: 2rem;
-            color: #7462aa;
+            padding: 3rem 2rem;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(254, 240, 138, 0.3);
+            border-top: 4px solid rgba(253, 230, 138, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
             font-size: 1.1rem;
+            color: #71717a;
+            font-weight: 600;
         }
 
         /* Responsive */
         @media (max-width: 768px) {
             body {
                 padding: 1rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
             }
 
             .summary-section {
@@ -301,12 +419,20 @@ $stmt->close();
                 grid-template-columns: 1fr;
             }
 
+            .filter-actions {
+                flex-direction: column;
+            }
+
             .table-container {
                 overflow-x: scroll;
             }
 
             table {
                 min-width: 600px;
+            }
+
+            .summary-value {
+                font-size: 2rem;
             }
         }
     </style>
@@ -322,7 +448,7 @@ $stmt->close();
 
         <!-- Summary Cards -->
         <div class="summary-section">
-            <div class="summary-card">
+            <div class="summary-card primary">
                 <div class="summary-label">Total Donated</div>
                 <div class="summary-value" id="totalDonated">₹0</div>
             </div>
@@ -389,7 +515,12 @@ $stmt->close();
                     </thead>
                     <tbody id="donationTableBody">
                         <tr>
-                            <td colspan="5" class="loading">Loading donations...</td>
+                            <td colspan="5">
+                                <div class="loading">
+                                    <div class="loading-spinner"></div>
+                                    <p class="loading-text">Loading donations...</p>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -401,7 +532,6 @@ $stmt->close();
         const sponsorId = <?php echo $sponsor_id; ?>;
         let allDonations = [];
 
-        // Load donations on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadDonations();
         });
@@ -450,9 +580,12 @@ $stmt->close();
             if (donations.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="empty-state">
-                            <div class="empty-icon">📭</div>
-                            <div>No donations found</div>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <div class="empty-icon">📭</div>
+                                <h3 class="empty-title">No donations found</h3>
+                                <p class="empty-message">Try adjusting your filter criteria</p>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -505,7 +638,6 @@ $stmt->close();
 
             displayDonations(filtered);
             
-            // Update summary for filtered data
             const totalAmount = filtered.reduce((sum, d) => sum + parseFloat(d.amount), 0);
             const totalCount = filtered.length;
             updateSummary({
@@ -522,7 +654,6 @@ $stmt->close();
             
             displayDonations(allDonations);
             
-            // Recalculate summary from all donations
             const totalAmount = allDonations.reduce((sum, d) => sum + parseFloat(d.amount), 0);
             updateSummary({
                 total_amount: totalAmount,
@@ -534,9 +665,12 @@ $stmt->close();
             const tbody = document.getElementById('donationTableBody');
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="empty-state">
-                        <div class="empty-icon">⚠️</div>
-                        <div>${message}</div>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <div class="empty-icon">⚠️</div>
+                            <h3 class="empty-title">Error Loading Data</h3>
+                            <p class="empty-message">${message}</p>
+                        </div>
                     </td>
                 </tr>
             `;

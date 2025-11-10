@@ -66,13 +66,13 @@ try {
     $counts['total_donated'] = $stmt->get_result()->fetch_assoc()['total'];
     $stmt->close();
     
-    // 3. New Reports (last 30 days) - FIXED: Join through sponsorships table
+    // 3. New Reports (last 30 days) - Using report_date field as in sponser_profile.php
     $stmt = $conn->prepare("
         SELECT COUNT(DISTINCT cr.report_id) as count 
         FROM child_reports cr
         INNER JOIN sponsorships sp ON cr.child_id = sp.child_id
         WHERE sp.sponsor_id = ? 
-        AND cr.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        AND cr.report_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         AND (sp.end_date IS NULL OR sp.end_date > CURDATE())
     ");
     $stmt->bind_param("i", $sponsor_id);
@@ -134,7 +134,7 @@ try {
     $counts['last_donation_date'] = $result['last_date'] ?? null;
     $stmt->close();
     
-    // 8. Total reports received - FIXED: Changed 'reports' to 'child_reports'
+    // 8. Total reports received
     $stmt = $conn->prepare("
         SELECT COUNT(*) as count 
         FROM child_reports 

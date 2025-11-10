@@ -1,11 +1,6 @@
 <?php
 session_start();
 
-// TEMPORARY: For testing without login - REMOVE THIS AFTER IMPLEMENTING LOGIN
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = 1; // Change to a valid user_id from your database
-}
-
 // Set header for JSON response
 header('Content-Type: application/json');
 
@@ -48,7 +43,7 @@ if ($file['size'] > $max_size) {
     exit();
 }
 
-// Get user ID and sponsor ID
+// Get user ID
 $user_id = $_SESSION['user_id'];
 
 // Get sponsor_id from database

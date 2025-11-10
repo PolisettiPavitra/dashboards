@@ -1,11 +1,30 @@
 <?php
 session_start();
 
-// Test data (remove when login is implemented)
-$_SESSION['user_id'] = 1;
-$sponsor_id = 14;
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once __DIR__ . '/../db_config.php';
+
+$user_id = $_SESSION['user_id'];
+
+// Get sponsor_id from database
+$query = "SELECT sponsor_id FROM sponsors WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows === 0) {
+    die("Sponsor not found. Please make sure this user account is registered as a sponsor.");
+}
+
+$sponsor_data = $result->fetch_assoc();
+$sponsor_id = intval($sponsor_data['sponsor_id']);
+$stmt->close();
 
 // Handle AJAX request for sponsored children data
 if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
@@ -96,6 +115,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
         exit();
     }
 }
+
+$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -622,6 +643,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
         let currentFilter = 'all';
 
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Loading children for sponsor:', SPONSOR_ID);
             fetchSponsoredChildren();
             setupEventListeners();
         });
@@ -636,14 +658,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                 childrenGrid.style.display = 'none';
                 emptyState.style.display = 'none';
                 
+                console.log('Fetching children...');
                 // Call the same page with action parameter
-                const response = await fetch(`?action=get_children&sponsor_id=${SPONSOR_ID}`);
+                const response = await fetch(`sponsored_children.php?action=get_children&sponsor_id=${SPONSOR_ID}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const result = await response.json();
+                console.log('Response:', result);
                 
                 if (!result.success) {
                     throw new Error(result.message || 'Failed to fetch data');

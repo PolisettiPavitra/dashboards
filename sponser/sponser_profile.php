@@ -1,9 +1,6 @@
 <?php
 session_start();
 
-// For testing - remove this line in production
-$_SESSION['user_id'] = 1;
-
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -95,6 +92,7 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
     <title>Sponsor Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        /* All your existing styles remain the same */
         * {
             margin: 0;
             padding: 0;
@@ -109,7 +107,6 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             overflow-x: hidden;
         }
 
-        /* MEDIUM YELLOW SPLASH IN CENTER */
         body::before {
             content: '';
             position: fixed;
@@ -169,7 +166,6 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             z-index: 1;
         }
 
-        /* Banner Section */
         .banner-section {
             width: 100%;
             height: 320px;
@@ -250,7 +246,6 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             }
         }
 
-        /* Main Content Grid */
         .main-content {
             display: grid;
             grid-template-columns: 420px 1fr;
@@ -258,7 +253,6 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             align-items: start;
         }
 
-        /* Profile Section */
         .profile-section {
             background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(20px);
@@ -297,6 +291,8 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
+            position: relative;
+            cursor: pointer;
         }
 
         .profile-picture:hover {
@@ -308,6 +304,26 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .profile-picture:hover::after {
+            content: '📷 Change';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: white;
+            font-weight: 600;
+        }
+
+        #profilePictureInput {
+            display: none;
         }
 
         .profile-name {
@@ -350,7 +366,6 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
-        /* Dashboard Cards Section */
         .dashboard-section {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -461,6 +476,47 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             transform: scale(1.1);
         }
 
+        /* Upload Toast Notification */
+        .upload-toast {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(254, 240, 138, 0.5);
+            border-radius: 16px;
+            padding: 1.25rem 1.75rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .upload-toast.show {
+            transform: translateX(0);
+        }
+
+        .upload-toast.success {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .upload-toast.error {
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .toast-icon {
+            font-size: 1.5rem;
+        }
+
+        .toast-message {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.85);
+        }
+
         @media (max-width: 1200px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -499,6 +555,13 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             .card-stats {
                 font-size: 2rem;
             }
+
+            .upload-toast {
+                top: 1rem;
+                right: 1rem;
+                left: 1rem;
+                max-width: calc(100% - 2rem);
+            }
         }
     </style>
 </head>
@@ -515,13 +578,14 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
         <div class="main-content">
             <div class="profile-section">
                 <div class="profile-picture-container">
-                    <div class="profile-picture">
+                    <div class="profile-picture" onclick="document.getElementById('profilePictureInput').click()">
                         <?php if (!empty($user_data['profile_picture']) && file_exists($user_data['profile_picture'])): ?>
-                            <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>" alt="Profile Picture">
+                            <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>" alt="Profile Picture" id="profilePictureImg">
                         <?php else: ?>
-                            <span><?php echo $initials; ?></span>
+                            <span id="profileInitials"><?php echo $initials; ?></span>
                         <?php endif; ?>
                     </div>
+                    <input type="file" id="profilePictureInput" accept="image/jpeg,image/jpg,image/png">
                     <div class="profile-name">
                         <?php echo htmlspecialchars($user_data['first_name'] . ' ' . $user_data['last_name']); ?>
                     </div>
@@ -598,9 +662,103 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
         </div>
     </div>
 
+    <!-- Upload Toast Notification -->
+    <div class="upload-toast" id="uploadToast">
+        <span class="toast-icon" id="toastIcon"></span>
+        <span class="toast-message" id="toastMessage"></span>
+    </div>
+
     <script>
         // Store sponsor ID globally
         window.SPONSOR_ID = <?php echo $sponsor_id; ?>;
+
+        // Profile picture upload handler
+        document.getElementById('profilePictureInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                showToast('error', 'Please select a JPG, JPEG, or PNG image');
+                return;
+            }
+
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('error', 'File size must be less than 5MB');
+                return;
+            }
+
+            // Upload file
+            const formData = new FormData();
+            formData.append('profile_picture', file);
+
+            try {
+                showToast('info', 'Uploading...');
+                
+                const response = await fetch('upload_profile_picture.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update profile picture display
+                    const profilePicture = document.querySelector('.profile-picture');
+                    const existingImg = document.getElementById('profilePictureImg');
+                    const initials = document.getElementById('profileInitials');
+                    
+                    if (existingImg) {
+                        existingImg.src = result.image_path + '?t=' + new Date().getTime();
+                    } else if (initials) {
+                        initials.remove();
+                        profilePicture.innerHTML = `<img src="${result.image_path}?t=${new Date().getTime()}" alt="Profile Picture" id="profilePictureImg">`;
+                    }
+                    
+                    showToast('success', 'Profile picture updated successfully!');
+                } else {
+                    showToast('error', result.message || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast('error', 'An error occurred during upload');
+            }
+        });
+
+        // Toast notification function
+        function showToast(type, message) {
+            const toast = document.getElementById('uploadToast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+
+            // Set icon based on type
+            const icons = {
+                success: '✅',
+                error: '❌',
+                info: '⏳'
+            };
+            
+            icon.textContent = icons[type] || '📢';
+            msg.textContent = message;
+
+            // Remove existing classes
+            toast.classList.remove('success', 'error', 'info');
+            
+            // Add type class
+            if (type !== 'info') {
+                toast.classList.add(type);
+            }
+
+            // Show toast
+            toast.classList.add('show');
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
 
         // Function to open dashboard detail pages
         function openDashboard(type) {
@@ -623,7 +781,7 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             liveDot.classList.add('updating');
             liveStatus.textContent = 'Updating...';
             
-            fetch(`get_sponsor_dashboard_counts.php?sponsor_id=${window.SPONSOR_ID}`)
+            fetch(`get_dashboard_counts.php?sponsor_id=${window.SPONSOR_ID}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');

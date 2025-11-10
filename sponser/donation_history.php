@@ -1,11 +1,30 @@
 <?php
 session_start();
 
-// Test data (remove when login is implemented)
-$_SESSION['user_id'] = 1;
-$sponsor_id = 14;
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once __DIR__ . '/../db_config.php';
+
+$user_id = $_SESSION['user_id'];
+
+// Get sponsor_id from database
+$query = "SELECT sponsor_id FROM sponsors WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows === 0) {
+    die("Sponsor not found. Please make sure this user account is registered as a sponsor.");
+}
+
+$sponsor_data = $result->fetch_assoc();
+$sponsor_id = intval($sponsor_data['sponsor_id']);
+$stmt->close();
 
 // Handle AJAX request for donation data
 if (isset($_GET['action']) && $_GET['action'] === 'get_donations') {
@@ -80,6 +99,7 @@ $stmt->bind_param("i", $sponsor_id);
 $stmt->execute();
 $sponsor = $stmt->get_result()->fetch_assoc();
 $stmt->close();
+$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -600,14 +620,22 @@ $stmt->close();
         let allDonations = [];
 
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Loading donations for sponsor:', sponsorId);
             loadDonations();
         });
 
         async function loadDonations() {
             try {
+                console.log('Fetching donations...');
                 // Call the same page with action parameter
-                const response = await fetch(`?action=get_donations&sponsor_id=${sponsorId}`);
+                const response = await fetch(`donation_history.php?action=get_donations&sponsor_id=${sponsorId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log('Response:', result);
 
                 if (result.success) {
                     allDonations = result.donations;
@@ -619,7 +647,7 @@ $stmt->close();
                 }
             } catch (error) {
                 console.error('Error loading donations:', error);
-                showError('Failed to load donation data');
+                showError('Failed to load donation data: ' + error.message);
             }
         }
 

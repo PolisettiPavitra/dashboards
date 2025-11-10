@@ -3,87 +3,108 @@ session_start();
 
 // Test data (remove when login is implemented)
 $_SESSION['user_id'] = 1;
-$sponsor_id = 14;
 
 require_once __DIR__ . '/../db_config.php';
 
-// Handle AJAX request for sponsored children data
-if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
+// Handle AJAX request for sponsors
+if (isset($_GET['action']) && $_GET['action'] === 'get_sponsors') {
     header('Content-Type: application/json');
     
     try {
-        // Get sponsored children with details
-        $children_query = "
+        // Get all sponsors with their sponsorship counts
+        $sponsors_query = "
             SELECT 
-                c.child_id,
-                c.first_name,
-                c.last_name,
-                c.dob,
-                c.gender,
-                c.status,
-                s.start_date,
-                s.end_date,
-                TIMESTAMPDIFF(YEAR, c.dob, CURDATE()) as age
-            FROM children c
-            INNER JOIN sponsorships s ON c.child_id = s.child_id
-            WHERE s.sponsor_id = ?
-            AND (s.end_date IS NULL OR s.end_date > CURDATE())
-            ORDER BY s.start_date DESC
+                s.sponsor_id,
+                s.user_id,
+                s.first_name,
+                s.last_name,
+                s.dob,
+                s.address,
+                s.is_flagged,
+                s.flag_reason,
+                s.profile_picture,
+                u.email,
+                u.phone_no,
+                u.created_at as registration_date,
+                TIMESTAMPDIFF(YEAR, s.dob, CURDATE()) as age,
+                COUNT(DISTINCT sp.child_id) as children_sponsored
+            FROM sponsors s
+            LEFT JOIN users u ON s.user_id = u.user_id
+            LEFT JOIN sponsorships sp ON s.sponsor_id = sp.sponsor_id 
+                AND (sp.end_date IS NULL OR sp.end_date > CURDATE())
+            GROUP BY s.sponsor_id
+            ORDER BY u.created_at DESC
         ";
 
-        $stmt = $conn->prepare($children_query);
-        $stmt->bind_param('i', $sponsor_id);
+        $stmt = $conn->prepare($sponsors_query);
         $stmt->execute();
         $result = $stmt->get_result();
         
-        $children = [];
+        $sponsors = [];
         $active_count = 0;
+        $inactive_count = 0;
         
         while ($row = $result->fetch_assoc()) {
             // Format dates
-            $row['dob_formatted'] = date('F j, Y', strtotime($row['dob']));
-            $row['start_date_formatted'] = date('F j, Y', strtotime($row['start_date']));
+            if ($row['dob']) {
+                $row['dob_formatted'] = date('F j, Y', strtotime($row['dob']));
+            } else {
+                $row['dob_formatted'] = 'N/A';
+            }
             
-            // Calculate sponsorship duration
-            $start = new DateTime($row['start_date']);
-            $now = new DateTime();
-            $interval = $start->diff($now);
-            
-            $years = $interval->y;
-            $months = $interval->m;
-            
-            if ($years > 0) {
-                $row['sponsorship_duration'] = $years . ' year' . ($years > 1 ? 's' : '');
-                if ($months > 0) {
-                    $row['sponsorship_duration'] .= ', ' . $months . ' month' . ($months > 1 ? 's' : '');
+            if ($row['registration_date']) {
+                $row['registration_date_formatted'] = date('F j, Y', strtotime($row['registration_date']));
+                
+                // Calculate membership duration
+                $registered = new DateTime($row['registration_date']);
+                $now = new DateTime();
+                $interval = $registered->diff($now);
+                
+                $years = $interval->y;
+                $months = $interval->m;
+                
+                if ($years > 0) {
+                    $row['membership_duration'] = $years . ' year' . ($years > 1 ? 's' : '');
+                    if ($months > 0) {
+                        $row['membership_duration'] .= ', ' . $months . ' month' . ($months > 1 ? 's' : '');
+                    }
+                } else if ($months > 0) {
+                    $row['membership_duration'] = $months . ' month' . ($months > 1 ? 's' : '');
+                } else {
+                    $days = $interval->days;
+                    $row['membership_duration'] = $days . ' day' . ($days > 1 ? 's' : '');
                 }
             } else {
-                $row['sponsorship_duration'] = $months . ' month' . ($months > 1 ? 's' : '');
+                $row['registration_date_formatted'] = 'N/A';
+                $row['membership_duration'] = 'N/A';
             }
             
             // Generate initials
             $row['initials'] = strtoupper(substr($row['first_name'], 0, 1) . substr($row['last_name'], 0, 1));
             
-            // Count active sponsorships
-            if ($row['status'] === 'Active' || $row['status'] === 'active') {
+            // Count active vs inactive sponsors
+            if ($row['children_sponsored'] > 0) {
                 $active_count++;
+            } else {
+                $inactive_count++;
             }
             
-            $children[] = $row;
+            $sponsors[] = $row;
         }
         
         $stmt->close();
         $conn->close();
         
         // Calculate stats
-        $total_count = count($children);
+        $total_count = count($sponsors);
         
         echo json_encode([
             'success' => true,
-            'data' => $children,
+            'data' => $sponsors,
             'stats' => [
                 'total_count' => $total_count,
-                'active_count' => $active_count
+                'active_count' => $active_count,
+                'inactive_count' => $inactive_count
             ]
         ]);
         exit();
@@ -91,7 +112,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
     } catch (Exception $e) {
         echo json_encode([
             'success' => false,
-            'message' => 'Error fetching children: ' . $e->getMessage()
+            'message' => 'Error fetching sponsors: ' . $e->getMessage()
         ]);
         exit();
     }
@@ -102,7 +123,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sponsored Children</title>
+    <title>Total Sponsors</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
@@ -135,7 +156,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             filter: blur(80px);
         }
 
-        /* Additional ambient glow */
         body::after {
             content: '';
             position: fixed;
@@ -157,7 +177,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             z-index: 1;
         }
 
-        /* Back Button */
         .back-btn {
             display: inline-flex;
             align-items: center;
@@ -183,7 +202,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             border-color: rgba(254, 240, 138, 0.6);
         }
 
-        /* Header Section */
         .page-header {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -192,14 +210,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             padding: 2.5rem;
             margin-bottom: 2rem;
             box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 2rem;
         }
 
         .page-title {
@@ -216,7 +226,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 500;
         }
 
-        /* Stats Cards */
         .stats-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -260,7 +269,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             color: #18181b;
         }
 
-        /* Controls Section */
         .controls-section {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -339,15 +347,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             box-shadow: 0 4px 12px rgba(254, 240, 138, 0.4);
         }
 
-        /* Children Grid */
-        .children-grid {
+        .sponsors-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 2rem;
             margin-bottom: 2rem;
         }
 
-        .child-card {
+        .sponsor-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(254, 240, 138, 0.3);
@@ -358,14 +365,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             cursor: pointer;
         }
 
-        .child-card:hover {
+        .sponsor-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 20px 60px rgba(254, 240, 138, 0.4);
             background: rgba(255, 255, 255, 1);
             border-color: rgba(254, 240, 138, 0.5);
         }
 
-        .child-photo {
+        .sponsor-photo {
             width: 120px;
             height: 120px;
             border-radius: 50%;
@@ -380,18 +387,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             box-shadow: 0 8px 24px rgba(254, 240, 138, 0.4);
         }
 
-        .child-photo img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .child-info {
+        .sponsor-info {
             text-align: center;
         }
 
-        .child-name {
+        .sponsor-name {
             font-size: 1.5rem;
             font-weight: 700;
             color: #18181b;
@@ -399,7 +399,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             letter-spacing: -0.01em;
         }
 
-        .child-details {
+        .sponsor-details {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
@@ -426,16 +426,40 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 700;
         }
 
+        .detail-value.email {
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+
         .sponsorship-info {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 2px solid rgba(254, 240, 138, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
-        .sponsorship-date {
+        .children-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .children-badge.inactive {
+            background: rgba(161, 161, 170, 0.1);
+            color: #71717a;
+            border: 1px solid rgba(161, 161, 170, 0.2);
+        }
+
+        .member-since {
             font-size: 0.875rem;
             color: #71717a;
-            margin-bottom: 0.5rem;
             font-weight: 500;
         }
 
@@ -461,7 +485,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             background: linear-gradient(135deg, rgba(254, 249, 195, 1), rgba(253, 230, 138, 0.9));
         }
 
-        /* Loading State */
         .loading {
             text-align: center;
             padding: 4rem 2rem;
@@ -488,7 +511,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 600;
         }
 
-        /* Empty State */
         .empty-state {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -518,7 +540,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 500;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             body {
                 padding: 1rem;
@@ -526,11 +547,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
 
             .page-title {
                 font-size: 2rem;
-            }
-
-            .header-content {
-                flex-direction: column;
-                align-items: flex-start;
             }
 
             .controls-grid {
@@ -542,7 +558,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                 justify-content: center;
             }
 
-            .children-grid {
+            .sponsors-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -554,32 +570,30 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
 </head>
 <body>
     <div class="container">
-        <a href="sponser_profile.php" class="back-btn">
+        <a href="javascript:history.back()" class="back-btn">
             ← Back to Dashboard
         </a>
 
         <div class="page-header">
-            <div class="header-content">
-                <div>
-                    <h1 class="page-title">Sponsored Children</h1>
-                    <p class="page-subtitle">Making a lasting impact through child sponsorship</p>
-                </div>
-            </div>
+            <h1 class="page-title">Total Sponsors</h1>
+            <p class="page-subtitle">Honoring the generous individuals making a difference in children's lives</p>
         </div>
 
-        <!-- Stats Section -->
         <div class="stats-container">
             <div class="stat-card primary">
-                <div class="stat-label">Total Sponsored</div>
+                <div class="stat-label">Total Sponsors</div>
                 <div class="stat-value" id="totalCount">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Active</div>
+                <div class="stat-label">Active Sponsors</div>
                 <div class="stat-value" id="activeCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Inactive Sponsors</div>
+                <div class="stat-value" id="inactiveCount">0</div>
             </div>
         </div>
 
-        <!-- Controls Section -->
         <div class="controls-section">
             <div class="controls-grid">
                 <div class="search-box">
@@ -587,57 +601,50 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                     <input type="text" 
                            class="search-input" 
                            id="searchInput" 
-                           placeholder="Search by child name...">
+                           placeholder="Search by sponsor name or email...">
                 </div>
                 <div class="filter-buttons">
                     <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="Male">Boys</button>
-                    <button class="filter-btn" data-filter="Female">Girls</button>
+                    <button class="filter-btn" data-filter="active">Active</button>
+                    <button class="filter-btn" data-filter="inactive">Inactive</button>
                 </div>
             </div>
         </div>
 
-        <!-- Loading State -->
         <div class="loading" id="loadingState">
             <div class="loading-spinner"></div>
-            <p class="loading-text">Loading sponsored children...</p>
+            <p class="loading-text">Loading sponsors...</p>
         </div>
 
-        <!-- Children Grid -->
-        <div class="children-grid" id="childrenGrid" style="display: none;">
-            <!-- Child cards will be dynamically inserted here -->
-        </div>
+        <div class="sponsors-grid" id="sponsorsGrid" style="display: none;"></div>
 
-        <!-- Empty State -->
         <div class="empty-state" id="emptyState" style="display: none;">
             <div class="empty-icon">📭</div>
-            <h2 class="empty-title">No Children Found</h2>
-            <p class="empty-message">You haven't sponsored any children yet.</p>
+            <h2 class="empty-title">No Sponsors Found</h2>
+            <p class="empty-message">There are currently no registered sponsors in the system.</p>
         </div>
     </div>
 
     <script>
-        const SPONSOR_ID = <?php echo $sponsor_id; ?>;
-        let allChildren = [];
+        let allSponsors = [];
         let currentFilter = 'all';
 
         document.addEventListener('DOMContentLoaded', function() {
-            fetchSponsoredChildren();
+            fetchSponsors();
             setupEventListeners();
         });
 
-        async function fetchSponsoredChildren() {
+        async function fetchSponsors() {
             const loadingState = document.getElementById('loadingState');
-            const childrenGrid = document.getElementById('childrenGrid');
+            const sponsorsGrid = document.getElementById('sponsorsGrid');
             const emptyState = document.getElementById('emptyState');
             
             try {
                 loadingState.style.display = 'block';
-                childrenGrid.style.display = 'none';
+                sponsorsGrid.style.display = 'none';
                 emptyState.style.display = 'none';
                 
-                // Call the same page with action parameter
-                const response = await fetch(`?action=get_children&sponsor_id=${SPONSOR_ID}`);
+                const response = await fetch(`?action=get_sponsors`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -649,20 +656,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                     throw new Error(result.message || 'Failed to fetch data');
                 }
                 
-                allChildren = result.data || [];
+                allSponsors = result.data || [];
                 updateStatistics(result.stats);
                 
                 loadingState.style.display = 'none';
                 
-                if (allChildren.length === 0) {
+                if (allSponsors.length === 0) {
                     emptyState.style.display = 'block';
                 } else {
-                    childrenGrid.style.display = 'grid';
-                    renderChildrenCards(allChildren);
+                    sponsorsGrid.style.display = 'grid';
+                    renderSponsorCards(allSponsors);
                 }
                 
             } catch (error) {
-                console.error('Error fetching sponsored children:', error);
+                console.error('Error fetching sponsors:', error);
                 loadingState.style.display = 'none';
                 emptyState.style.display = 'block';
                 document.querySelector('.empty-title').textContent = 'Error Loading Data';
@@ -674,51 +681,65 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             if (!stats) return;
             document.getElementById('totalCount').textContent = stats.total_count || 0;
             document.getElementById('activeCount').textContent = stats.active_count || 0;
+            document.getElementById('inactiveCount').textContent = stats.inactive_count || 0;
         }
 
-        function renderChildrenCards(children) {
-            const childrenGrid = document.getElementById('childrenGrid');
+        function renderSponsorCards(sponsors) {
+            const sponsorsGrid = document.getElementById('sponsorsGrid');
             
-            if (!children || children.length === 0) {
-                childrenGrid.innerHTML = '<p class="empty-state">No children match your search criteria.</p>';
+            if (!sponsors || sponsors.length === 0) {
+                sponsorsGrid.innerHTML = '<p class="empty-state">No sponsors match your search criteria.</p>';
                 return;
             }
             
-            childrenGrid.innerHTML = children.map(child => `
-                <div class="child-card" data-gender="${child.gender}" data-name="${child.first_name} ${child.last_name}">
-                    <div class="child-photo">
-                        ${child.initials || '??'}
+            sponsorsGrid.innerHTML = sponsors.map(sponsor => {
+                const isActive = sponsor.children_sponsored > 0;
+                const childrenText = sponsor.children_sponsored === 1 
+                    ? '1 child' 
+                    : `${sponsor.children_sponsored} children`;
+                
+                return `
+                <div class="sponsor-card" data-name="${sponsor.first_name} ${sponsor.last_name}" data-email="${sponsor.email || ''}" data-active="${isActive}">
+                    <div class="sponsor-photo">
+                        ${sponsor.initials || '??'}
                     </div>
-                    <div class="child-info">
-                        <div class="child-name">${child.first_name} ${child.last_name}</div>
-                        <div class="child-details">
+                    <div class="sponsor-info">
+                        <div class="sponsor-name">${sponsor.first_name} ${sponsor.last_name}</div>
+                        <div class="sponsor-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Email:</span>
+                                <span class="detail-value email">${sponsor.email || 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Phone:</span>
+                                <span class="detail-value">${sponsor.phone_no || 'N/A'}</span>
+                            </div>
                             <div class="detail-row">
                                 <span class="detail-label">Age:</span>
-                                <span class="detail-value">${child.age} years</span>
+                                <span class="detail-value">${sponsor.age} years</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">Gender:</span>
-                                <span class="detail-value">${child.gender}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Status:</span>
-                                <span class="detail-value">${child.status}</span>
+                                <span class="detail-label">Address:</span>
+                                <span class="detail-value">${sponsor.address || 'N/A'}</span>
                             </div>
                         </div>
                         <div class="sponsorship-info">
-                            <div class="sponsorship-date">
-                                Sponsored since ${child.start_date_formatted}
+                            <div class="children-badge ${!isActive ? 'inactive' : ''}">
+                                ${isActive ? `✓ Sponsoring ${childrenText}` : '○ Not currently sponsoring'}
                             </div>
-                            <div class="sponsorship-date">
-                                Duration: ${child.sponsorship_duration}
+                            <div class="member-since">
+                                Member since: ${sponsor.registration_date_formatted}
+                            </div>
+                            <div class="member-since">
+                                Duration: ${sponsor.membership_duration}
                             </div>
                         </div>
-                        <button class="view-btn" onclick="viewChildProfile(${child.child_id})">
+                        <button class="view-btn" onclick="viewSponsorProfile(${sponsor.sponsor_id})">
                             View Profile
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function setupEventListeners() {
@@ -745,41 +766,46 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             const searchInput = document.getElementById('searchInput');
             const currentSearchTerm = searchTerm || searchInput.value.toLowerCase().trim();
             
-            let filteredChildren = allChildren;
+            let filteredSponsors = allSponsors;
             
-            if (currentFilter !== 'all') {
-                filteredChildren = filteredChildren.filter(child => child.gender === currentFilter);
+            // Apply status filter
+            if (currentFilter === 'active') {
+                filteredSponsors = filteredSponsors.filter(sponsor => sponsor.children_sponsored > 0);
+            } else if (currentFilter === 'inactive') {
+                filteredSponsors = filteredSponsors.filter(sponsor => sponsor.children_sponsored === 0);
             }
             
+            // Apply search filter
             if (currentSearchTerm) {
-                filteredChildren = filteredChildren.filter(child => {
-                    const fullName = `${child.first_name} ${child.last_name}`.toLowerCase();
-                    return fullName.includes(currentSearchTerm);
+                filteredSponsors = filteredSponsors.filter(sponsor => {
+                    const fullName = `${sponsor.first_name} ${sponsor.last_name}`.toLowerCase();
+                    const email = (sponsor.email || '').toLowerCase();
+                    return fullName.includes(currentSearchTerm) || email.includes(currentSearchTerm);
                 });
             }
             
-            renderChildrenCards(filteredChildren);
+            renderSponsorCards(filteredSponsors);
             
-            const childrenGrid = document.getElementById('childrenGrid');
+            const sponsorsGrid = document.getElementById('sponsorsGrid');
             const emptyState = document.getElementById('emptyState');
             
-            if (filteredChildren.length === 0) {
-                childrenGrid.style.display = 'none';
+            if (filteredSponsors.length === 0) {
+                sponsorsGrid.style.display = 'none';
                 emptyState.style.display = 'block';
-                document.querySelector('.empty-title').textContent = 'No Children Found';
+                document.querySelector('.empty-title').textContent = 'No Sponsors Found';
                 document.querySelector('.empty-message').textContent = 'Try adjusting your search or filter criteria.';
             } else {
-                childrenGrid.style.display = 'grid';
+                sponsorsGrid.style.display = 'grid';
                 emptyState.style.display = 'none';
             }
         }
 
-        function viewChildProfile(childId) {
-            if (!childId) {
-                console.error('Invalid child ID');
+        function viewSponsorProfile(sponsorId) {
+            if (!sponsorId) {
+                console.error('Invalid sponsor ID');
                 return;
             }
-            window.location.href = `child_profile.php?child_id=${childId}`;
+            window.location.href = `sponsor_profile.php?sponsor_id=${sponsorId}`;
         }
     </script>
 </body>

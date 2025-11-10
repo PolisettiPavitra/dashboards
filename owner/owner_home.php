@@ -2,15 +2,16 @@
 session_start();
 require_once __DIR__ . '/../db_config.php';
 
+// Test data (remove when login is implemented)
 $_SESSION['user_id'] = 5;
 
-if(!isset($_SESSION['user_id']))
-{
+// Check if user is logged in and is owner
+if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-//get owner info
+// Get owner information
 $user_id = $_SESSION['user_id'];
 $stmt = $conn->prepare("SELECT username, email, phone_no, user_role FROM users WHERE user_id = ? AND user_role = 'Owner'");
 $stmt->bind_param("i", $user_id);
@@ -22,7 +23,7 @@ if ($result->num_rows === 0) {
     exit();
 }
 
-$staff = $result->fetch_assoc();
+$owner = $result->fetch_assoc();
 $stmt->close();
 
 // Get dashboard statistics
@@ -48,13 +49,21 @@ $stmt->close();
 
 $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE user_role = 'Staff'");
 $stmt->execute();
-$Staff_Total = $stmt->get_result()->fetch_assoc()['count'];
+$staff_total = $stmt->get_result()->fetch_assoc()['count'];
 $stmt->close();
 
 $stmt = $conn->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM donations");
 $stmt->execute();
 $total_donated = $stmt->get_result()->fetch_assoc()['total'];
 $stmt->close();
+
+// Get initials
+$words = explode(' ', $owner['username']);
+if (count($words) >= 2) {
+    $initials = strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
+} else {
+    $initials = strtoupper(substr($owner['username'], 0, 2));
+}
 ?>
 
 <!DOCTYPE html>
@@ -63,7 +72,7 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Owner Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -72,192 +81,271 @@ $stmt->close();
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #FCF3CF 0%, #F9E79F 50%, #F4D03F 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #ffffff;
             min-height: 100vh;
             position: relative;
             overflow-x: hidden;
         }
 
+        /* BRIGHT YELLOW SPLASH IN CENTER - Like the reference image */
         body::before {
             content: '';
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(244, 208, 63, 0.4) 0%, rgba(249, 231, 159, 0.2) 40%, transparent 70%);
-            filter: blur(80px);
-            z-index: 0;
+            width: 1000px;
+            height: 1000px;
+            background: radial-gradient(circle at center, 
+                #FEF3C7 0%,
+                #FDE68A 15%,
+                #FCD34D 25%, 
+                #FBBF24 35%,
+                rgba(251, 191, 36, 0.6) 45%,
+                rgba(252, 211, 77, 0.3) 55%,
+                transparent 70%);
             pointer-events: none;
-            animation: pulse 8s ease-in-out infinite;
+            z-index: 0;
+            filter: blur(60px);
+            animation: pulseAura 6s ease-in-out infinite;
         }
 
-        @keyframes pulse {
+        @keyframes pulseAura {
             0%, 100% {
                 transform: translate(-50%, -50%) scale(1);
-                opacity: 0.6;
+                opacity: 0.9;
             }
             50% {
                 transform: translate(-50%, -50%) scale(1.1);
-                opacity: 0.8;
+                opacity: 1;
             }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle at center, 
+                #FBBF24 0%,
+                #FCD34D 20%, 
+                rgba(252, 211, 77, 0.7) 40%,
+                transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(40px);
         }
 
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 2.5rem;
             position: relative;
             z-index: 1;
         }
 
-        .profile-header {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.2));
+        .banner-section {
+            width: 100%;
+            height: 320px;
+            background: rgba(255, 255, 255, 0.35);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            padding: 2rem 2.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-            position: relative;
+            border-radius: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            margin-bottom: 2.5rem;
             overflow: hidden;
-        }
-
-        .profile-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at top left, rgba(244, 208, 63, 0.15), transparent);
-            pointer-events: none;
-        }
-
-        .profile-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: 4px solid rgba(255, 255, 255, 0.8);
-            background: linear-gradient(135deg, rgba(244, 208, 63, 0.4), rgba(249, 231, 159, 0.4));
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
-            color: rgba(0, 0, 0, 0.6);
-            font-weight: 700;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-            flex-shrink: 0;
-            position: relative;
-            z-index: 1;
         }
 
-        .profile-content {
-            flex: 1;
+        .banner-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        .live-indicator {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            color: rgba(0, 0, 0, 0.7);
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+            animation: livePulse 2s ease-in-out infinite;
+        }
+
+        .live-dot.updating {
+            background: #f59e0b;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+            animation: updatePulse 0.8s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(0.85);
+            }
+        }
+
+        @keyframes updatePulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
+        }
+
+        /* Main Content Grid */
+        .main-content {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 2.5rem;
+            align-items: start;
+        }
+
+        /* Profile Section - Glassmorphism */
+        .profile-section {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            padding: 3rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
             position: relative;
-            z-index: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-picture-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+
+        .profile-picture {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            background: linear-gradient(135deg, rgba(255, 237, 160, 0.5), rgba(254, 249, 195, 0.4));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            color: rgba(0, 0, 0, 0.65);
+            font-weight: 700;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .profile-picture:hover {
+            transform: scale(1.05);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
         }
 
         .profile-name {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
             color: rgba(0, 0, 0, 0.85);
-            margin-bottom: 0.5rem;
-        }
-
-        .profile-info-row {
-            display: flex;
-            gap: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.95rem;
-            color: rgba(0, 0, 0, 0.7);
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: rgba(0, 0, 0, 0.5);
-        }
-
-        .quote-section {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.15));
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            padding: 2rem 2.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
             text-align: center;
-            position: relative;
-            overflow: hidden;
+            letter-spacing: -0.02em;
         }
 
-        .quote-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at center, rgba(244, 208, 63, 0.1), transparent);
-            pointer-events: none;
+        .profile-details {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
         }
 
-        .quote-text {
-            font-size: 1.3rem;
+        .detail-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: rgba(0, 0, 0, 0.5);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .detail-value {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(10px);
+            padding: 1rem 1.5rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            color: rgba(0, 0, 0, 0.85);
             font-weight: 500;
-            color: rgba(0, 0, 0, 0.75);
-            font-style: italic;
-            line-height: 1.6;
-            position: relative;
-            z-index: 1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
-        .quote-text::before {
-            content: '"';
-            font-size: 3rem;
-            color: rgba(244, 208, 63, 0.4);
-            position: absolute;
-            top: -1rem;
-            left: -1rem;
-            font-family: Georgia, serif;
-        }
-
-        .dashboard-grid {
+        /* Dashboard Cards Section */
+        .dashboard-section {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
         }
 
         .dashboard-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.2));
+            background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            padding: 2rem;
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            padding: 2.5rem;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
             color: inherit;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
             position: relative;
             overflow: hidden;
-            min-height: 200px;
+            min-height: 220px;
         }
 
         .dashboard-card::before {
@@ -267,15 +355,16 @@ $stmt->close();
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at top left, rgba(244, 208, 63, 0.1), transparent);
+            background: radial-gradient(circle at top left, rgba(255, 237, 160, 0.15), transparent 70%);
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.4s ease;
         }
 
         .dashboard-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-            border-color: rgba(243, 156, 18, 0.6);
+            transform: translateY(-12px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12),
+                        inset 0 1px 0 rgba(255, 255, 255, 1);
+            border-color: rgba(255, 237, 160, 0.8);
         }
 
         .dashboard-card:hover::before {
@@ -283,202 +372,337 @@ $stmt->close();
         }
 
         .dashboard-card.fraud-card {
-            border: 2px solid rgba(252, 31, 12, 0.3);
+            border-color: rgba(239, 68, 68, 0.3);
         }
 
         .dashboard-card.fraud-card:hover {
-            border-color: rgba(252, 31, 12, 0.6);
+            border-color: rgba(239, 68, 68, 0.6);
+        }
+
+        .dashboard-card.fraud-card::before {
+            background: radial-gradient(circle at top left, rgba(239, 68, 68, 0.1), transparent 70%);
         }
 
         .dashboard-card.donation-card {
-            border: 2px solid rgba(55, 74, 206, 0.3);
+            border-color: rgba(59, 130, 246, 0.3);
         }
 
         .dashboard-card.donation-card:hover {
-            border-color: rgba(55, 74, 206, 0.6);
+            border-color: rgba(59, 130, 246, 0.6);
         }
 
-
+        .dashboard-card.donation-card::before {
+            background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.1), transparent 70%);
+        }
 
         .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: rgba(0, 0, 0, 0.8);
-            margin-bottom: 0.8rem;
-            position: relative;
-            z-index: 1;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.85);
+            margin-bottom: 1rem;
+            letter-spacing: -0.01em;
         }
 
         .card-description {
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             color: rgba(0, 0, 0, 0.6);
             line-height: 1.6;
-            margin-bottom: 1.5rem;
-            flex-grow: 1;
-            position: relative;
-            z-index: 1;
+            margin-bottom: auto;
+            font-weight: 400;
         }
 
         .card-stats {
-            padding-top: 1rem;
-            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
             font-size: 2.5rem;
-            color: rgba(0, 0, 0, 0.8);
-            font-weight: 700;
-            margin-top: auto;
-            position: relative;
-            z-index: 1;
+            color: rgba(0, 0, 0, 0.85);
+            font-weight: 800;
+            letter-spacing: -0.02em;
         }
 
         .dashboard-card.fraud-card .card-stats {
-            color: #fc1f0c;
+            color: #ef4444;
         }
 
         .dashboard-card.donation-card .card-stats {
-            color: #374ace;
-            font-size: 1.8rem;
+            color: #3b82f6;
         }
 
         .card-stats-label {
             font-size: 0.75rem;
             color: rgba(0, 0, 0, 0.5);
-            font-weight: 500;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             display: block;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .count-number {
+            transition: all 0.3s ease;
+        }
+
+        .count-number.updating {
+            color: #f59e0b;
+            transform: scale(1.1);
         }
 
         @media (max-width: 1200px) {
-            .dashboard-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-section {
+                max-width: 600px;
+                margin: 0 auto;
             }
         }
 
         @media (max-width: 768px) {
             .container {
-                padding: 1rem;
-            }
-
-            .profile-header {
-                flex-direction: column;
-                text-align: center;
                 padding: 1.5rem;
             }
 
-            .profile-info-row {
-                flex-direction: column;
-                gap: 0.5rem;
-                align-items: center;
+            .banner-section {
+                height: 220px;
+                border-radius: 24px;
             }
 
-            .dashboard-grid {
+            .banner-text {
+                font-size: 1.75rem;
+            }
+
+            .dashboard-section {
                 grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                gap: 2rem;
+            }
+
+            .profile-picture {
+                width: 120px;
+                height: 120px;
+                font-size: 2.5rem;
             }
 
             .card-stats {
                 font-size: 2rem;
-            }
-
-            .dashboard-card.donation-card .card-stats {
-                font-size: 1.5rem;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="profile-header">
-            <div class="profile-avatar">
-                <?php 
-                $words = explode(' ', $staff['username']);
-                if (count($words) >= 2) {
-                    echo strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
-                } else {
-                    echo strtoupper(substr($staff['username'], 0, 2));
-                }
-                ?>
-            </div>
-            <div class="profile-content">
-                <div class="profile-name"><?php echo htmlspecialchars($staff['username']); ?></div>
-                <div class="profile-info-row">
-                    <div class="info-item">
-                        <span class="info-label">Role:</span>
-                        <span><?php echo htmlspecialchars($staff['user_role']); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Email:</span>
-                        <span><?php echo htmlspecialchars($staff['email']); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Phone:</span>
-                        <span><?php echo htmlspecialchars($staff['phone_no']); ?></span>
-                    </div>
-                </div>
+        <div class="banner-section">
+            <img src="../sponser/image.png" alt="Owner Dashboard" class="banner-image">
+            <div class="live-indicator">
+                <div class="live-dot" id="live-dot"></div>
+                <span id="live-status">Live</span>
             </div>
         </div>
 
-        <div class="quote-section">
-            <p class="quote-text">Every child deserves a champion – an adult who will never give up on them, who understands the power of connection and insists that they become the best they can possibly be.</p>
-        </div>
+        <div class="main-content">
+            <div class="profile-section">
+                <div class="profile-picture-container">
+                    <div class="profile-picture">
+                        <span><?php echo $initials; ?></span>
+                    </div>
+                    <div class="profile-name">
+                        <?php echo htmlspecialchars($owner['username']); ?>
+                    </div>
+                </div>
 
-        <div class="dashboard-grid">
-            <div class="dashboard-card" onclick="openDashboard('children-needing')">
-                <h3 class="card-title">Children Needing Sponsors</h3>
-                <p class="card-description">View children waiting for sponsors</p>
-                <div class="card-stats">
-                    <span class="card-stats-label">Total Children</span>
-                    <div><?php echo $children_needing_sponsors; ?></div>
+                <div class="profile-details">
+                    <div class="detail-field">
+                        <label class="detail-label">Username</label>
+                        <div class="detail-value">
+                            <?php echo htmlspecialchars($owner['username']); ?>
+                        </div>
+                    </div>
+
+                    <div class="detail-field">
+                        <label class="detail-label">Email Address</label>
+                        <div class="detail-value">
+                            <?php echo htmlspecialchars($owner['email']); ?>
+                        </div>
+                    </div>
+
+                    <div class="detail-field">
+                        <label class="detail-label">Phone Number</label>
+                        <div class="detail-value">
+                            <?php echo htmlspecialchars($owner['phone_no']); ?>
+                        </div>
+                    </div>
+
+                    <div class="detail-field">
+                        <label class="detail-label">Role</label>
+                        <div class="detail-value">
+                            <?php echo htmlspecialchars($owner['user_role']); ?>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="dashboard-card" onclick="openDashboard('children-having')">
-                <h3 class="card-title">Children Having Sponsors</h3>
-                <p class="card-description">Track currently sponsored children</p>
-                <div class="card-stats">
-                    <span class="card-stats-label">Total Sponsored</span>
-                    <div><?php echo $children_having_sponsors; ?></div>
+            <div class="dashboard-section">
+                <div class="dashboard-card" onclick="openDashboard('children-needing')">
+                    <h3 class="card-title">Children Needing Sponsors</h3>
+                    <p class="card-description">View and manage children waiting for sponsorship opportunities</p>
+                    <div class="card-stats">
+                        <span class="card-stats-label">Unsponsored</span>
+                        <div class="count-number" id="children-needing-count"><?php echo $children_needing_sponsors; ?></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="dashboard-card" onclick="openDashboard('total-sponsors')">
-                <h3 class="card-title">Total Sponsors</h3>
-                <p class="card-description">View all registered sponsors</p>
-                <div class="card-stats">
-                    <span class="card-stats-label">Active Sponsors</span>
-                    <div><?php echo $total_sponsors; ?></div>
+                <div class="dashboard-card" onclick="openDashboard('children-having')">
+                    <h3 class="card-title">Children Having Sponsors</h3>
+                    <p class="card-description">Track all children currently under active sponsorship</p>
+                    <div class="card-stats">
+                        <span class="card-stats-label">Sponsored</span>
+                        <div class="count-number" id="children-having-count"><?php echo $children_having_sponsors; ?></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="dashboard-card fraud-card" onclick="openDashboard('fraud-cases')">
-                <h3 class="card-title">Fraud Cases</h3>
-                <p class="card-description">Review flagged sponsors</p>
-                <div class="card-stats">
-                    <span class="card-stats-label">Flagged Accounts</span>
-                    <div><?php echo $fraud_cases; ?></div>
+                <div class="dashboard-card" onclick="openDashboard('total-sponsors')">
+                    <h3 class="card-title">Total Sponsors</h3>
+                    <p class="card-description">View complete list of all registered sponsors in the system</p>
+                    <div class="card-stats">
+                        <span class="card-stats-label">Active Sponsors</span>
+                        <div class="count-number" id="total-sponsors-count"><?php echo $total_sponsors; ?></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="dashboard-card" onclick="openDashboard('staff-total')">
-                <h3 class="card-title">Total Staff</h3>
-                <p class="card-description">Manage staff members</p>
-                <div class="card-stats">
-                    <span class="card-stats-label">Staff Members</span>
-                    <div><?php echo $Staff_Total; ?></div>
+                <div class="dashboard-card fraud-card" onclick="openDashboard('fraud-cases')">
+                    <h3 class="card-title">Fraud Cases</h3>
+                    <p class="card-description">Review and manage flagged accounts requiring investigation</p>
+                    <div class="card-stats">
+                        <span class="card-stats-label">Flagged Accounts</span>
+                        <div class="count-number" id="fraud-cases-count"><?php echo $fraud_cases; ?></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="dashboard-card donation-card" onclick="openDashboard('total-donations')">
-                <h3 class="card-title">Total Amount Donated</h3>
-                <p class="card-description">Track all donations received</p>
-                <div class="card-stats">
-                    <span class="card-stats-label">Total Donations</span>
-                    <div>₹<?php echo number_format($total_donated, 2); ?></div>
+                <div class="dashboard-card" onclick="openDashboard('staff-total')">
+                    <h3 class="card-title">Total Staff</h3>
+                    <p class="card-description">Manage and oversee all staff members in the organization</p>
+                    <div class="card-stats">
+                        <span class="card-stats-label">Staff Members</span>
+                        <div class="count-number" id="staff-total-count"><?php echo $staff_total; ?></div>
+                    </div>
+                </div>
+
+                <div class="dashboard-card donation-card" onclick="openDashboard('total-donations')">
+                    <h3 class="card-title">Total Donations</h3>
+                    <p class="card-description">Track and monitor all monetary contributions received</p>
+                    <div class="card-stats">
+                        <span class="card-stats-label">Amount Donated</span>
+                        <div class="count-number" id="total-donations-count">₹<?php echo number_format($total_donated, 2); ?></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="owner_home.js"></script>
+    <script>
+        // Function to open dashboard detail pages
+        function openDashboard(type) {
+            const routes = {
+                'children-needing': '../staff/children_needing_sponsors.php',
+                'children-having': '../staff/children_having_sponsors.php',
+                'total-sponsors': '../staff/total_sponsors.php',
+                'fraud-cases': '../staff/fraud_cases.php',
+                'staff-total': 'staff_management.php',
+                'total-donations': 'donations.php'
+            };
+            
+            window.location.href = routes[type];
+        }
+
+        // Function to refresh dashboard counts
+        function refreshDashboardCounts() {
+            const liveDot = document.getElementById('live-dot');
+            const liveStatus = document.getElementById('live-status');
+            
+            // Show updating state
+            liveDot.classList.add('updating');
+            liveStatus.textContent = 'Updating...';
+            
+            fetch('get_dashboard_counts.php')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Update counts with animation
+                        updateCount('children-needing-count', data.children_needing);
+                        updateCount('children-having-count', data.children_having);
+                        updateCount('total-sponsors-count', data.total_sponsors);
+                        updateCount('fraud-cases-count', data.fraud_cases);
+                        updateCount('staff-total-count', data.staff_total);
+                        updateCount('total-donations-count', '₹' + parseFloat(data.total_donated).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+                        
+                        console.log('Dashboard updated at:', data.timestamp);
+                    }
+                    
+                    // Reset to live state
+                    setTimeout(() => {
+                        liveDot.classList.remove('updating');
+                        liveStatus.textContent = 'Live';
+                    }, 500);
+                })
+                .catch(error => {
+                    console.error('Error refreshing counts:', error);
+                    liveDot.classList.remove('updating');
+                    liveStatus.textContent = 'Error';
+                    setTimeout(() => {
+                        liveStatus.textContent = 'Live';
+                    }, 3000);
+                });
+        }
+
+        // Function to update count with animation
+        function updateCount(elementId, newValue) {
+            const element = document.getElementById(elementId);
+            const currentValue = element.textContent.replace(/[^0-9.]/g, '');
+            const cleanNewValue = String(newValue).replace(/[^0-9.]/g, '');
+            
+            if (currentValue !== cleanNewValue) {
+                element.classList.add('updating');
+                
+                setTimeout(() => {
+                    element.textContent = newValue;
+                    setTimeout(() => {
+                        element.classList.remove('updating');
+                    }, 300);
+                }, 150);
+            }
+        }
+
+        // Page load animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.dashboard-card');
+            
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    card.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+
+            // Start auto-refresh after 3 seconds
+            setTimeout(() => {
+                refreshDashboardCounts();
+                // Auto-refresh every 30 seconds
+                setInterval(refreshDashboardCounts, 30000);
+            }, 3000);
+        });
+    </script>
 </body>
 </html>

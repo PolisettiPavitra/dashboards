@@ -7,7 +7,74 @@ $sponsor_id = 14;
 
 require_once __DIR__ . '/../db_config.php';
 
-// Get sponsor details
+// Handle AJAX request for donation data
+if (isset($_GET['action']) && $_GET['action'] === 'get_donations') {
+    header('Content-Type: application/json');
+    
+    try {
+        // Get all donations with child details
+        $donations_query = "
+            SELECT 
+                d.donation_id,
+                d.amount,
+                d.donation_date,
+                d.payment_method,
+                CONCAT(c.first_name, ' ', c.last_name) as child_name,
+                c.child_id
+            FROM donations d
+            INNER JOIN children c ON d.child_id = c.child_id
+            WHERE d.sponsor_id = ?
+            ORDER BY d.donation_date DESC
+        ";
+
+        $stmt = $conn->prepare($donations_query);
+        $stmt->bind_param("i", $sponsor_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $donations = [];
+        $total_amount = 0;
+        
+        while ($row = $result->fetch_assoc()) {
+            $donations[] = [
+                'donation_id' => $row['donation_id'],
+                'child_name' => $row['child_name'],
+                'amount' => $row['amount'],
+                'donation_date' => $row['donation_date'],
+                'payment_method' => $row['payment_method'],
+                'child_id' => $row['child_id']
+            ];
+            $total_amount += floatval($row['amount']);
+        }
+        
+        $stmt->close();
+        $conn->close();
+        
+        // Calculate stats
+        $total_count = count($donations);
+        $average_amount = $total_count > 0 ? ($total_amount / $total_count) : 0;
+        
+        echo json_encode([
+            'success' => true,
+            'donations' => $donations,
+            'stats' => [
+                'total_amount' => $total_amount,
+                'total_count' => $total_count,
+                'average_amount' => $average_amount
+            ]
+        ]);
+        exit();
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error fetching donations: ' . $e->getMessage()
+        ]);
+        exit();
+    }
+}
+
+// Get sponsor details for display
 $stmt = $conn->prepare("SELECT first_name, last_name FROM sponsors WHERE sponsor_id = ?");
 $stmt->bind_param("i", $sponsor_id);
 $stmt->execute();
@@ -538,7 +605,8 @@ $stmt->close();
 
         async function loadDonations() {
             try {
-                const response = await fetch(`get_donation_data.php?sponsor_id=${sponsorId}`);
+                // Call the same page with action parameter
+                const response = await fetch(`?action=get_donations&sponsor_id=${sponsorId}`);
                 const result = await response.json();
 
                 if (result.success) {

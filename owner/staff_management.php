@@ -3,87 +3,101 @@ session_start();
 
 // Test data (remove when login is implemented)
 $_SESSION['user_id'] = 1;
-$sponsor_id = 14;
 
 require_once __DIR__ . '/../db_config.php';
 
-// Handle AJAX request for sponsored children data
-if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
+// Handle AJAX request for staff members
+if (isset($_GET['action']) && $_GET['action'] === 'get_staff') {
     header('Content-Type: application/json');
     
     try {
-        // Get sponsored children with details
-        $children_query = "
+        // Get all staff members (Staff role only, not Owner)
+        $staff_query = "
             SELECT 
-                c.child_id,
-                c.first_name,
-                c.last_name,
-                c.dob,
-                c.gender,
-                c.status,
-                s.start_date,
-                s.end_date,
-                TIMESTAMPDIFF(YEAR, c.dob, CURDATE()) as age
-            FROM children c
-            INNER JOIN sponsorships s ON c.child_id = s.child_id
-            WHERE s.sponsor_id = ?
-            AND (s.end_date IS NULL OR s.end_date > CURDATE())
-            ORDER BY s.start_date DESC
+                u.user_id,
+                u.username,
+                u.email,
+                u.user_role,
+                u.phone_no,
+                u.created_at,
+                COUNT(DISTINCT s.sponsorship_id) as total_sponsorships,
+                COUNT(DISTINCT d.donation_id) as total_donations
+            FROM users u
+            LEFT JOIN sponsorships s ON u.user_id = s.sponsor_id AND u.user_role = 'Sponsor'
+            LEFT JOIN donations d ON u.user_id = d.sponsor_id
+            WHERE u.user_role = 'Staff'
+            GROUP BY u.user_id
+            ORDER BY u.created_at DESC
         ";
 
-        $stmt = $conn->prepare($children_query);
-        $stmt->bind_param('i', $sponsor_id);
+        $stmt = $conn->prepare($staff_query);
         $stmt->execute();
         $result = $stmt->get_result();
         
-        $children = [];
-        $active_count = 0;
+        $staff_members = [];
+        $staff_count = 0;
         
         while ($row = $result->fetch_assoc()) {
             // Format dates
-            $row['dob_formatted'] = date('F j, Y', strtotime($row['dob']));
-            $row['start_date_formatted'] = date('F j, Y', strtotime($row['start_date']));
+            $row['created_at_formatted'] = date('F j, Y', strtotime($row['created_at']));
             
-            // Calculate sponsorship duration
-            $start = new DateTime($row['start_date']);
-            $now = new DateTime();
-            $interval = $start->diff($now);
-            
-            $years = $interval->y;
-            $months = $interval->m;
-            
-            if ($years > 0) {
-                $row['sponsorship_duration'] = $years . ' year' . ($years > 1 ? 's' : '');
-                if ($months > 0) {
-                    $row['sponsorship_duration'] .= ', ' . $months . ' month' . ($months > 1 ? 's' : '');
+            // Calculate days employed - FIXED VERSION
+            try {
+                $joined = new DateTime($row['created_at']);
+                $now = new DateTime();
+                $interval = $joined->diff($now);
+                
+                // Get total days - handle false case
+                $days = ($interval->days !== false) ? (int)$interval->days : 0;
+                
+                // If created today, show at least 1 day
+                if ($days === 0) {
+                    $days = 1;
                 }
-            } else {
-                $row['sponsorship_duration'] = $months . ' month' . ($months > 1 ? 's' : '');
+                
+                $months = floor($days / 30);
+                $years = floor($days / 365);
+                
+                if ($years > 0) {
+                    $row['employment_duration'] = $years . ' year' . ($years > 1 ? 's' : '');
+                    $row['duration_category'] = $years >= 2 ? '2+' : '1-2';
+                } else if ($months >= 6) {
+                    $row['employment_duration'] = $months . ' month' . ($months > 1 ? 's' : '');
+                    $row['duration_category'] = '6-12';
+                } else if ($months > 0) {
+                    $row['employment_duration'] = $months . ' month' . ($months > 1 ? 's' : '');
+                    $row['duration_category'] = '0-6';
+                } else {
+                    $row['employment_duration'] = $days . ' day' . ($days > 1 ? 's' : '');
+                    $row['duration_category'] = '0-6';
+                }
+            } catch (Exception $e) {
+                // Fallback if date parsing fails
+                $row['employment_duration'] = 'N/A';
+                $row['duration_category'] = '0-6';
             }
             
             // Generate initials
-            $row['initials'] = strtoupper(substr($row['first_name'], 0, 1) . substr($row['last_name'], 0, 1));
+            $row['initials'] = strtoupper(substr($row['username'], 0, 2));
             
-            // Count active sponsorships
-            if ($row['status'] === 'Active' || $row['status'] === 'active') {
-                $active_count++;
-            }
+            // Count staff
+            $staff_count++;
             
-            $children[] = $row;
+            $staff_members[] = $row;
         }
         
         $stmt->close();
         $conn->close();
         
         // Calculate stats
-        $total_count = count($children);
+        $total_count = count($staff_members);
         
         echo json_encode([
             'success' => true,
-            'data' => $children,
+            'data' => $staff_members,
             'stats' => [
                 'total_count' => $total_count,
-                'active_count' => $active_count
+                'staff_count' => $staff_count
             ]
         ]);
         exit();
@@ -91,7 +105,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
     } catch (Exception $e) {
         echo json_encode([
             'success' => false,
-            'message' => 'Error fetching children: ' . $e->getMessage()
+            'message' => 'Error fetching staff: ' . $e->getMessage()
         ]);
         exit();
     }
@@ -102,7 +116,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sponsored Children</title>
+    <title>Total Staff</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
@@ -135,7 +149,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             filter: blur(80px);
         }
 
-        /* Additional ambient glow */
         body::after {
             content: '';
             position: fixed;
@@ -157,7 +170,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             z-index: 1;
         }
 
-        /* Back Button */
         .back-btn {
             display: inline-flex;
             align-items: center;
@@ -183,7 +195,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             border-color: rgba(254, 240, 138, 0.6);
         }
 
-        /* Header Section */
         .page-header {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -192,14 +203,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             padding: 2.5rem;
             margin-bottom: 2rem;
             box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 2rem;
         }
 
         .page-title {
@@ -216,7 +219,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 500;
         }
 
-        /* Stats Cards */
         .stats-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -260,7 +262,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             color: #18181b;
         }
 
-        /* Controls Section */
         .controls-section {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -339,15 +340,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             box-shadow: 0 4px 12px rgba(254, 240, 138, 0.4);
         }
 
-        /* Children Grid */
-        .children-grid {
+        .staff-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 2rem;
             margin-bottom: 2rem;
         }
 
-        .child-card {
+        .staff-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(254, 240, 138, 0.3);
@@ -355,17 +355,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             padding: 2rem;
             box-shadow: 0 8px 32px rgba(254, 240, 138, 0.2);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
         }
 
-        .child-card:hover {
+        .staff-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 20px 60px rgba(254, 240, 138, 0.4);
             background: rgba(255, 255, 255, 1);
             border-color: rgba(254, 240, 138, 0.5);
         }
 
-        .child-photo {
+        .staff-photo {
             width: 120px;
             height: 120px;
             border-radius: 50%;
@@ -380,26 +379,33 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             box-shadow: 0 8px 24px rgba(254, 240, 138, 0.4);
         }
 
-        .child-photo img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .child-info {
+        .staff-info {
             text-align: center;
         }
 
-        .child-name {
+        .staff-name {
             font-size: 1.5rem;
             font-weight: 700;
             color: #18181b;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             letter-spacing: -0.01em;
         }
 
-        .child-details {
+        .staff-role {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            margin-bottom: 1rem;
+        }
+
+
+
+        .staff-details {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
@@ -424,44 +430,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
         .detail-value {
             color: #18181b;
             font-weight: 700;
+            text-align: right;
+            word-break: break-word;
+            max-width: 60%;
         }
 
-        .sponsorship-info {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 2px solid rgba(254, 240, 138, 0.3);
-        }
-
-        .sponsorship-date {
-            font-size: 0.875rem;
-            color: #71717a;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .view-btn {
-            width: 100%;
-            margin-top: 1.5rem;
-            padding: 1rem;
-            background: linear-gradient(135deg, rgba(254, 249, 195, 0.9), rgba(253, 230, 138, 0.8));
-            color: #18181b;
-            border: 1px solid rgba(254, 240, 138, 0.5);
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-weight: 700;
-            font-family: 'Inter', sans-serif;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(254, 240, 138, 0.3);
-        }
-
-        .view-btn:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 24px rgba(254, 240, 138, 0.5);
-            background: linear-gradient(135deg, rgba(254, 249, 195, 1), rgba(253, 230, 138, 0.9));
-        }
-
-        /* Loading State */
         .loading {
             text-align: center;
             padding: 4rem 2rem;
@@ -488,7 +461,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 600;
         }
 
-        /* Empty State */
         .empty-state {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -518,7 +490,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             font-weight: 500;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             body {
                 padding: 1rem;
@@ -526,11 +497,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
 
             .page-title {
                 font-size: 2rem;
-            }
-
-            .header-content {
-                flex-direction: column;
-                align-items: flex-start;
             }
 
             .controls-grid {
@@ -542,7 +508,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                 justify-content: center;
             }
 
-            .children-grid {
+            .staff-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -554,32 +520,26 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
 </head>
 <body>
     <div class="container">
-        <a href="sponser_profile.php" class="back-btn">
+        <a href="javascript:history.back()" class="back-btn">
             ← Back to Dashboard
         </a>
 
         <div class="page-header">
-            <div class="header-content">
-                <div>
-                    <h1 class="page-title">Sponsored Children</h1>
-                    <p class="page-subtitle">Making a lasting impact through child sponsorship</p>
-                </div>
-            </div>
+            <h1 class="page-title">Total Staff</h1>
+            <p class="page-subtitle">View and manage all staff members in the organization</p>
         </div>
 
-        <!-- Stats Section -->
         <div class="stats-container">
             <div class="stat-card primary">
-                <div class="stat-label">Total Sponsored</div>
+                <div class="stat-label">Total Staff</div>
                 <div class="stat-value" id="totalCount">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Active</div>
-                <div class="stat-value" id="activeCount">0</div>
+                <div class="stat-label">Active Members</div>
+                <div class="stat-value" id="staffCount">0</div>
             </div>
         </div>
 
-        <!-- Controls Section -->
         <div class="controls-section">
             <div class="controls-grid">
                 <div class="search-box">
@@ -587,57 +547,52 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                     <input type="text" 
                            class="search-input" 
                            id="searchInput" 
-                           placeholder="Search by child name...">
+                           placeholder="Search by name or email...">
                 </div>
                 <div class="filter-buttons">
                     <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="Male">Boys</button>
-                    <button class="filter-btn" data-filter="Female">Girls</button>
+                    <button class="filter-btn" data-filter="0-6">0-6 Months</button>
+                    <button class="filter-btn" data-filter="6-12">6-12 Months</button>
+                    <button class="filter-btn" data-filter="1-2">1-2 Years</button>
+                    <button class="filter-btn" data-filter="2+">2+ Years</button>
                 </div>
             </div>
         </div>
 
-        <!-- Loading State -->
         <div class="loading" id="loadingState">
             <div class="loading-spinner"></div>
-            <p class="loading-text">Loading sponsored children...</p>
+            <p class="loading-text">Loading staff members...</p>
         </div>
 
-        <!-- Children Grid -->
-        <div class="children-grid" id="childrenGrid" style="display: none;">
-            <!-- Child cards will be dynamically inserted here -->
-        </div>
+        <div class="staff-grid" id="staffGrid" style="display: none;"></div>
 
-        <!-- Empty State -->
         <div class="empty-state" id="emptyState" style="display: none;">
-            <div class="empty-icon">📭</div>
-            <h2 class="empty-title">No Children Found</h2>
-            <p class="empty-message">You haven't sponsored any children yet.</p>
+            <div class="empty-icon">No Staff</div>
+            <h2 class="empty-title">No Staff Members Found</h2>
+            <p class="empty-message">No staff members match your search criteria.</p>
         </div>
     </div>
 
     <script>
-        const SPONSOR_ID = <?php echo $sponsor_id; ?>;
-        let allChildren = [];
+        let allStaff = [];
         let currentFilter = 'all';
 
         document.addEventListener('DOMContentLoaded', function() {
-            fetchSponsoredChildren();
+            fetchStaff();
             setupEventListeners();
         });
 
-        async function fetchSponsoredChildren() {
+        async function fetchStaff() {
             const loadingState = document.getElementById('loadingState');
-            const childrenGrid = document.getElementById('childrenGrid');
+            const staffGrid = document.getElementById('staffGrid');
             const emptyState = document.getElementById('emptyState');
             
             try {
                 loadingState.style.display = 'block';
-                childrenGrid.style.display = 'none';
+                staffGrid.style.display = 'none';
                 emptyState.style.display = 'none';
                 
-                // Call the same page with action parameter
-                const response = await fetch(`?action=get_children&sponsor_id=${SPONSOR_ID}`);
+                const response = await fetch(`?action=get_staff`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -649,20 +604,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
                     throw new Error(result.message || 'Failed to fetch data');
                 }
                 
-                allChildren = result.data || [];
+                allStaff = result.data || [];
                 updateStatistics(result.stats);
                 
                 loadingState.style.display = 'none';
                 
-                if (allChildren.length === 0) {
+                if (allStaff.length === 0) {
                     emptyState.style.display = 'block';
                 } else {
-                    childrenGrid.style.display = 'grid';
-                    renderChildrenCards(allChildren);
+                    staffGrid.style.display = 'grid';
+                    renderStaffCards(allStaff);
                 }
                 
             } catch (error) {
-                console.error('Error fetching sponsored children:', error);
+                console.error('Error fetching staff:', error);
                 loadingState.style.display = 'none';
                 emptyState.style.display = 'block';
                 document.querySelector('.empty-title').textContent = 'Error Loading Data';
@@ -673,49 +628,43 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
         function updateStatistics(stats) {
             if (!stats) return;
             document.getElementById('totalCount').textContent = stats.total_count || 0;
-            document.getElementById('activeCount').textContent = stats.active_count || 0;
+            document.getElementById('staffCount').textContent = stats.staff_count || 0;
         }
 
-        function renderChildrenCards(children) {
-            const childrenGrid = document.getElementById('childrenGrid');
+        function renderStaffCards(staff) {
+            const staffGrid = document.getElementById('staffGrid');
             
-            if (!children || children.length === 0) {
-                childrenGrid.innerHTML = '<p class="empty-state">No children match your search criteria.</p>';
+            if (!staff || staff.length === 0) {
+                staffGrid.innerHTML = '<p class="empty-state">No staff members match your search criteria.</p>';
                 return;
             }
             
-            childrenGrid.innerHTML = children.map(child => `
-                <div class="child-card" data-gender="${child.gender}" data-name="${child.first_name} ${child.last_name}">
-                    <div class="child-photo">
-                        ${child.initials || '??'}
+            staffGrid.innerHTML = staff.map(member => `
+                <div class="staff-card" data-role="${member.user_role}" data-name="${member.username}" data-email="${member.email}" data-duration="${member.duration_category}">
+                    <div class="staff-photo">
+                        ${member.initials || '??'}
                     </div>
-                    <div class="child-info">
-                        <div class="child-name">${child.first_name} ${child.last_name}</div>
-                        <div class="child-details">
+                    <div class="staff-info">
+                        <div class="staff-name">${member.username}</div>
+                        <span class="staff-role ${member.user_role.toLowerCase()}">${member.user_role}</span>
+                        <div class="staff-details">
                             <div class="detail-row">
-                                <span class="detail-label">Age:</span>
-                                <span class="detail-value">${child.age} years</span>
+                                <span class="detail-label">Email:</span>
+                                <span class="detail-value">${member.email || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">Gender:</span>
-                                <span class="detail-value">${child.gender}</span>
+                                <span class="detail-label">Phone:</span>
+                                <span class="detail-value">${member.phone_no || 'N/A'}</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">Status:</span>
-                                <span class="detail-value">${child.status}</span>
+                                <span class="detail-label">Joined:</span>
+                                <span class="detail-value">${member.created_at_formatted}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Duration:</span>
+                                <span class="detail-value">${member.employment_duration}</span>
                             </div>
                         </div>
-                        <div class="sponsorship-info">
-                            <div class="sponsorship-date">
-                                Sponsored since ${child.start_date_formatted}
-                            </div>
-                            <div class="sponsorship-date">
-                                Duration: ${child.sponsorship_duration}
-                            </div>
-                        </div>
-                        <button class="view-btn" onclick="viewChildProfile(${child.child_id})">
-                            View Profile
-                        </button>
                     </div>
                 </div>
             `).join('');
@@ -745,41 +694,36 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_children') {
             const searchInput = document.getElementById('searchInput');
             const currentSearchTerm = searchTerm || searchInput.value.toLowerCase().trim();
             
-            let filteredChildren = allChildren;
+            let filteredStaff = allStaff;
             
+            // Apply duration filter
             if (currentFilter !== 'all') {
-                filteredChildren = filteredChildren.filter(child => child.gender === currentFilter);
+                filteredStaff = filteredStaff.filter(member => member.duration_category === currentFilter);
             }
             
+            // Apply search filter
             if (currentSearchTerm) {
-                filteredChildren = filteredChildren.filter(child => {
-                    const fullName = `${child.first_name} ${child.last_name}`.toLowerCase();
-                    return fullName.includes(currentSearchTerm);
+                filteredStaff = filteredStaff.filter(member => {
+                    const username = member.username.toLowerCase();
+                    const email = (member.email || '').toLowerCase();
+                    return username.includes(currentSearchTerm) || email.includes(currentSearchTerm);
                 });
             }
             
-            renderChildrenCards(filteredChildren);
+            renderStaffCards(filteredStaff);
             
-            const childrenGrid = document.getElementById('childrenGrid');
+            const staffGrid = document.getElementById('staffGrid');
             const emptyState = document.getElementById('emptyState');
             
-            if (filteredChildren.length === 0) {
-                childrenGrid.style.display = 'none';
+            if (filteredStaff.length === 0) {
+                staffGrid.style.display = 'none';
                 emptyState.style.display = 'block';
-                document.querySelector('.empty-title').textContent = 'No Children Found';
+                document.querySelector('.empty-title').textContent = 'No Staff Members Found';
                 document.querySelector('.empty-message').textContent = 'Try adjusting your search or filter criteria.';
             } else {
-                childrenGrid.style.display = 'grid';
+                staffGrid.style.display = 'grid';
                 emptyState.style.display = 'none';
             }
-        }
-
-        function viewChildProfile(childId) {
-            if (!childId) {
-                console.error('Invalid child ID');
-                return;
-            }
-            window.location.href = `child_profile.php?child_id=${childId}`;
         }
     </script>
 </body>

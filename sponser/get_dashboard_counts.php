@@ -1,7 +1,7 @@
 <?php
 /**
- * AJAX endpoint for refreshing dashboard counts
- * Returns JSON data with current statistics
+ * AJAX endpoint for refreshing sponsor dashboard counts
+ * Returns JSON data with current statistics for a specific sponsor
  */
 
 session_start();
@@ -10,101 +10,142 @@ require_once __DIR__ . '/../db_config.php';
 // Set JSON header
 header('Content-Type: application/json');
 
-// Check if user is logged in and is staff
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+    echo json_encode(['error' => 'Unauthorized', 'success' => false]);
     exit();
 }
 
-// Verify user is staff
+// Get sponsor_id from request
+$sponsor_id = isset($_GET['sponsor_id']) ? intval($_GET['sponsor_id']) : 0;
+
+if (!$sponsor_id) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid sponsor ID', 'success' => false]);
+    exit();
+}
+
+// Verify that the logged-in user owns this sponsor account
 $user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT user_role FROM users WHERE user_id = ? AND user_role = 'Staff'");
-$stmt->bind_param("i", $user_id);
+$stmt = $conn->prepare("SELECT sponsor_id FROM sponsors WHERE sponsor_id = ? AND user_id = ?");
+$stmt->bind_param("ii", $sponsor_id, $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
     http_response_code(403);
-    echo json_encode(['error' => 'Forbidden - Staff access required']);
+    echo json_encode(['error' => 'Forbidden - Not your account', 'success' => false]);
     exit();
 }
 $stmt->close();
 
 try {
-    // Get all dashboard counts
     $counts = [];
     
-    // 1. Children needing sponsors
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM children WHERE status = 'Unsponsored'");
+    // 1. Sponsored Children (active sponsorships)
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as count 
+        FROM sponsorships 
+        WHERE sponsor_id = ? 
+        AND (end_date IS NULL OR end_date > CURDATE())
+    ");
+    $stmt->bind_param("i", $sponsor_id);
     $stmt->execute();
-    $counts['children_needing'] = $stmt->get_result()->fetch_assoc()['count'];
+    $counts['sponsored_children'] = $stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
     
-    // 2. Children having sponsors
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM children WHERE status = 'Sponsored'");
+    // 2. Total Donations
+    $stmt = $conn->prepare("
+        SELECT COALESCE(SUM(amount), 0) as total 
+        FROM donations 
+        WHERE sponsor_id = ?
+    ");
+    $stmt->bind_param("i", $sponsor_id);
     $stmt->execute();
-    $counts['children_having'] = $stmt->get_result()->fetch_assoc()['count'];
+    $counts['total_donated'] = $stmt->get_result()->fetch_assoc()['total'];
     $stmt->close();
     
-    // 3. Total sponsors
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM sponsors");
+    // 3. New Reports (last 30 days) - FIXED: Join through sponsorships table
+    $stmt = $conn->prepare("
+        SELECT COUNT(DISTINCT cr.report_id) as count 
+        FROM child_reports cr
+        INNER JOIN sponsorships sp ON cr.child_id = sp.child_id
+        WHERE sp.sponsor_id = ? 
+        AND cr.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        AND (sp.end_date IS NULL OR sp.end_date > CURDATE())
+    ");
+    $stmt->bind_param("i", $sponsor_id);
     $stmt->execute();
-    $counts['total_sponsors'] = $stmt->get_result()->fetch_assoc()['count'];
+    $counts['new_reports'] = $stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
     
-    // 4. Fraud cases
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM sponsors WHERE is_flagged = 1");
-    $stmt->execute();
-    $counts['fraud_cases'] = $stmt->get_result()->fetch_assoc()['count'];
-    $stmt->close();
-    
-    // 5. Total children
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM children");
-    $stmt->execute();
-    $counts['total_children'] = $stmt->get_result()->fetch_assoc()['count'];
-    $stmt->close();
-    
-    // 6. Active sponsorships
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM sponsorships WHERE status = 'Active'");
-    $stmt->execute();
-    $counts['active_sponsorships'] = $stmt->get_result()->fetch_assoc()['count'];
-    $stmt->close();
-    
-    // 7. Sponsorship rate
-    if ($counts['total_children'] > 0) {
-        $counts['sponsorship_rate'] = round(($counts['children_having'] / $counts['total_children']) * 100, 1);
+    // 4. Recent Timeline Events (last 30 days)
+    // Check if table exists first
+    $table_check = $conn->query("SHOW TABLES LIKE 'timeline_events'");
+    if ($table_check && $table_check->num_rows > 0) {
+        $stmt = $conn->prepare("
+            SELECT COUNT(*) as count 
+            FROM timeline_events 
+            WHERE sponsor_id = ? 
+            AND created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        ");
+        $stmt->bind_param("i", $sponsor_id);
+        $stmt->execute();
+        $counts['recent_events'] = $stmt->get_result()->fetch_assoc()['count'];
+        $stmt->close();
     } else {
-        $counts['sponsorship_rate'] = 0;
+        $counts['recent_events'] = 0;
     }
     
-    // 8. Active sponsors
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM sponsors WHERE is_flagged = 0");
-    $stmt->execute();
-    $counts['active_sponsors'] = $stmt->get_result()->fetch_assoc()['count'];
-    $stmt->close();
+    // Additional useful statistics
     
-    // 9. New unsponsored this week
+    // 5. Total children ever sponsored
     $stmt = $conn->prepare("
-        SELECT COUNT(*) as count FROM children 
-        WHERE status = 'Unsponsored' 
-        AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        SELECT COUNT(*) as count 
+        FROM sponsorships 
+        WHERE sponsor_id = ?
     ");
+    $stmt->bind_param("i", $sponsor_id);
     $stmt->execute();
-    $counts['new_unsponsored_week'] = $stmt->get_result()->fetch_assoc()['count'];
+    $counts['total_children_ever'] = $stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
     
-    // 10. New sponsored this week
+    // 6. Donation count
     $stmt = $conn->prepare("
-        SELECT COUNT(*) as count FROM children 
-        WHERE status = 'Sponsored' 
-        AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        SELECT COUNT(*) as count 
+        FROM donations 
+        WHERE sponsor_id = ?
     ");
+    $stmt->bind_param("i", $sponsor_id);
     $stmt->execute();
-    $counts['new_sponsored_week'] = $stmt->get_result()->fetch_assoc()['count'];
+    $counts['donation_count'] = $stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
     
-    // Add timestamp
+    // 7. Last donation date
+    $stmt = $conn->prepare("
+        SELECT MAX(donation_date) as last_date 
+        FROM donations 
+        WHERE sponsor_id = ?
+    ");
+    $stmt->bind_param("i", $sponsor_id);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    $counts['last_donation_date'] = $result['last_date'] ?? null;
+    $stmt->close();
+    
+    // 8. Total reports received - FIXED: Changed 'reports' to 'child_reports'
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as count 
+        FROM child_reports 
+        WHERE sponsor_id = ?
+    ");
+    $stmt->bind_param("i", $sponsor_id);
+    $stmt->execute();
+    $counts['total_reports'] = $stmt->get_result()->fetch_assoc()['count'];
+    $stmt->close();
+    
+    // Add timestamp and success flag
     $counts['timestamp'] = date('Y-m-d H:i:s');
     $counts['success'] = true;
     

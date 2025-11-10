@@ -71,11 +71,11 @@ try {
                     $redirect_url = '../sponser/sponser_profile.php';
                     break;
                 case 'Staff':
-                    $redirect_url = '../staff/staff_dashboard.html';
+                    $redirect_url = '../staff/staff_home_old.php';
                     break;
                 case 'Owner':
                 case 'Admin':
-                    $redirect_url = '../admin/admin_dashboard.html';
+                    $redirect_url = '../owner/owner_home.php';
                     break;
                 default:
                     $redirect_url = '../dashboard.html';

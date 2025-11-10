@@ -1,25 +1,55 @@
 <?php
 session_start();
-require_once __DIR__ . '/../db_config.php';
 
-// Test cases - Remove these in production
-$_SESSION['user_id'] = 4;
-
-// Check if user is logged in and is staff
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: ../signup_and_login/login.php");
     exit();
 }
 
-// Get staff information
+require_once __DIR__ . '/../db_config.php';
+
+// Check if database connection exists
+if (!isset($conn)) {
+    die("Database connection failed. Please check db_config.php");
+}
+
 $user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email, phone_no, user_role FROM users WHERE user_id = ? AND user_role = 'Staff'");
+
+// Get staff information and verify role
+$query = "SELECT user_id, username, email, phone_no, user_role, created_at
+          FROM users
+          WHERE user_id = ? AND user_role = 'Staff'";
+
+$stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    header("Location: login.php");
+    // User is not a staff member, redirect to appropriate page
+    $check_role = $conn->prepare("SELECT user_role FROM users WHERE user_id = ?");
+    $check_role->bind_param("i", $user_id);
+    $check_role->execute();
+    $role_result = $check_role->get_result();
+    
+    if ($role_result->num_rows > 0) {
+        $user_role = $role_result->fetch_assoc()['user_role'];
+        // Redirect based on actual role
+        switch ($user_role) {
+            case 'Sponsor':
+                header("Location: ../sponser/sponser_profile.php");
+                break;
+            case 'Owner':
+            case 'Admin':
+                header("Location: ../owner/owner_home.php");
+                break;
+            default:
+                header("Location: ../signup_and_login/login.php");
+        }
+    } else {
+        header("Location: ../signup_and_login/login.php");
+    }
     exit();
 }
 
@@ -47,7 +77,9 @@ $stmt->execute();
 $fraud_cases = $stmt->get_result()->fetch_assoc()['count'];
 $stmt->close();
 
-// Get initials
+$conn->close();
+
+// Calculate initials
 $words = explode(' ', $staff['username']);
 if (count($words) >= 2) {
     $initials = strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
@@ -129,7 +161,6 @@ if (count($words) >= 2) {
             z-index: 0;
             filter: blur(40px);
         }
-
 
         .container {
             max-width: 1400px;
@@ -504,7 +535,7 @@ if (count($words) >= 2) {
                     <div class="detail-field">
                         <label class="detail-label">Phone Number</label>
                         <div class="detail-value">
-                            <?php echo htmlspecialchars($staff['phone_no']); ?>
+                            <?php echo htmlspecialchars($staff['phone_no'] ?? 'Not provided'); ?>
                         </div>
                     </div>
 
@@ -512,6 +543,13 @@ if (count($words) >= 2) {
                         <label class="detail-label">Role</label>
                         <div class="detail-value">
                             <?php echo htmlspecialchars($staff['user_role']); ?>
+                        </div>
+                    </div>
+
+                    <div class="detail-field">
+                        <label class="detail-label">Member Since</label>
+                        <div class="detail-value">
+                            <?php echo date('F j, Y', strtotime($staff['created_at'])); ?>
                         </div>
                     </div>
                 </div>

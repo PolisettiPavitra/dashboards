@@ -2,24 +2,23 @@
 session_start();
 require_once __DIR__ . '/../db_config.php';
 
-// Test data (remove when login is implemented)
-$_SESSION['user_id'] = 5;
-
-// Check if user is logged in and is owner
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: ../login/login.html");
     exit();
 }
 
-// Get owner information
+// Get owner information from session
 $user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email, phone_no, user_role FROM users WHERE user_id = ? AND user_role = 'Owner'");
+$stmt = $conn->prepare("SELECT username, email, phone_no, user_role FROM users WHERE user_id = ? AND user_role IN ('Owner', 'Admin')");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    header("Location: login.php");
+    // User is not an Owner/Admin, redirect to login
+    session_destroy();
+    header("Location: ../login/login.html");
     exit();
 }
 

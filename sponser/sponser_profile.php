@@ -109,7 +109,7 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             overflow-x: hidden;
         }
 
-        /* BRIGHT YELLOW SPLASH IN CENTER */
+        /* MEDIUM YELLOW SPLASH IN CENTER */
         body::before {
             content: '';
             position: fixed;
@@ -119,12 +119,12 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             width: 1000px;
             height: 1000px;
             background: radial-gradient(circle at center, 
-                #FEF3C7 0%,
-                #FDE68A 15%,
-                #FCD34D 25%, 
-                #FBBF24 35%,
-                rgba(251, 191, 36, 0.6) 45%,
-                rgba(252, 211, 77, 0.3) 55%,
+                rgba(254, 243, 199, 0.6) 0%,
+                rgba(253, 230, 138, 0.55) 15%,
+                rgba(252, 211, 77, 0.5) 25%, 
+                rgba(251, 191, 36, 0.45) 35%,
+                rgba(251, 191, 36, 0.35) 45%,
+                rgba(252, 211, 77, 0.25) 55%,
                 transparent 70%);
             pointer-events: none;
             z-index: 0;
@@ -135,11 +135,11 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
         @keyframes pulseAura {
             0%, 100% {
                 transform: translate(-50%, -50%) scale(1);
-                opacity: 0.9;
+                opacity: 0.7;
             }
             50% {
                 transform: translate(-50%, -50%) scale(1.1);
-                opacity: 1;
+                opacity: 0.85;
             }
         }
 
@@ -152,9 +152,9 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             width: 600px;
             height: 600px;
             background: radial-gradient(circle at center, 
-                #FBBF24 0%,
-                #FCD34D 20%, 
-                rgba(252, 211, 77, 0.7) 40%,
+                rgba(251, 191, 36, 0.5) 0%,
+                rgba(252, 211, 77, 0.4) 20%, 
+                rgba(252, 211, 77, 0.3) 40%,
                 transparent 65%);
             pointer-events: none;
             z-index: 0;

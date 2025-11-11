@@ -1,0 +1,508 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    line-height: 1.6;
+    color: #1d1d1f;
+    background: linear-gradient(135deg, #fdfbf7 0%, #fff9e6 50%, #fdfbf7 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Central Yellow Aura */
+body::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px;
+    height: 900px;
+    background: radial-gradient(circle, rgba(255, 204, 0, 0.35) 0%, rgba(255, 204, 0, 0.2) 30%, rgba(255, 204, 0, 0.08) 60%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+    animation: pulse 8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.15);
+        opacity: 0.9;
+    }
+}
+
+/* Header & Navigation - Glassmorphism */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(255, 255, 255, 0.72);
+    border-bottom: 1px solid rgba(255, 204, 0, 0.1);
+}
+
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.logo-placeholder {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    overflow: hidden;
+    filter: drop-shadow(0 2px 8px rgba(255, 204, 0, 0.3));
+}
+
+.logo-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.nav-menu {
+    display: flex;
+    list-style: none;
+    gap: 40px;
+    align-items: center;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #1d1d1f;
+    font-size: 14px;
+    font-weight: 400;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.nav-link:hover {
+    color: #f5a623;
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 12px;
+    padding: 8px 0;
+    margin-top: 12px;
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 204, 0, 0.2);
+}
+
+.dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    margin-top: 8px;
+}
+
+.dropdown-link {
+    display: block;
+    padding: 12px 24px;
+    color: #1d1d1f;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.2s ease;
+}
+
+.dropdown-link:hover {
+    background: rgba(255, 204, 0, 0.1);
+}
+
+/* Main Content */
+.main-content {
+    position: relative;
+    z-index: 1;
+    padding: 80px 20px 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+}
+
+/* Signup Container - Glassmorphism */
+.signup-container {
+    width: 100%;
+    max-width: 700px;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    border-radius: 32px;
+    padding: 60px 50px;
+    box-shadow: 
+        0 20px 60px rgba(255, 204, 0, 0.15),
+        0 0 0 1px rgba(255, 204, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    position: relative;
+    overflow: hidden;
+}
+
+.signup-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.signup-title {
+    font-size: 42px;
+    font-weight: 700;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+    text-align: center;
+    position: relative;
+}
+
+.signup-subtitle {
+    font-size: 18px;
+    color: #6e6e73;
+    text-align: center;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+/* Form Styling */
+.signup-form {
+    position: relative;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group.half-width {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group input[type="date"],
+.form-group input[type="password"],
+.form-group textarea {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid rgba(255, 204, 0, 0.2);
+    border-radius: 12px;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #1d1d1f;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: rgba(255, 152, 0, 0.6);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 4px rgba(255, 204, 0, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: #ffc107;
+}
+
+.checkbox-group label {
+    font-size: 14px;
+    color: #1d1d1f;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-group a {
+    color: #f5a623;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.checkbox-group a:hover {
+    color: #ff9800;
+    text-decoration: underline;
+}
+
+/* Password Strength Indicator */
+.password-strength {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+}
+
+/* Error Messages */
+.error-message {
+    display: block;
+    color: #e74c3c;
+    font-size: 13px;
+    margin-top: 6px;
+    min-height: 18px;
+}
+
+/* Submit Button */
+.signup-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    color: #1d1d1f;
+    border: none;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(255, 193, 7, 0.4);
+    letter-spacing: 0.3px;
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.signup-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.signup-btn:hover::before {
+    left: 100%;
+}
+
+.signup-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(255, 193, 7, 0.5);
+}
+
+.signup-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.signup-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-text,
+.btn-spinner {
+    position: relative;
+    z-index: 1;
+}
+
+/* Success Message */
+.success-message {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(46, 204, 113, 0.1);
+    border: 2px solid rgba(46, 204, 113, 0.3);
+    border-radius: 12px;
+    color: #27ae60;
+    font-size: 15px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Login Link */
+.login-link {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 15px;
+    color: #6e6e73;
+}
+
+.login-link-btn {
+    color: #f5a623;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.login-link-btn:hover {
+    color: #ff9800;
+    text-decoration: underline;
+}
+
+/* Footer */
+.footer {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 30px 20px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 204, 0, 0.2);
+    position: relative;
+    z-index: 1;
+}
+
+.footer p {
+    color: #6e6e73;
+    font-size: 14px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nav-menu {
+        display: none;
+    }
+    
+    .nav-container {
+        padding: 12px 20px;
+    }
+    
+    .main-content {
+        padding: 40px 20px;
+    }
+    
+    .signup-container {
+        padding: 40px 30px;
+        border-radius: 24px;
+    }
+    
+    .signup-title {
+        font-size: 32px;
+    }
+    
+    .signup-subtitle {
+        font-size: 16px;
+        margin-bottom: 30px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    
+    .form-group.half-width {
+        margin-bottom: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    body::before {
+        width: 600px;
+        height: 600px;
+    }
+    
+    .signup-container {
+        padding: 30px 20px;
+    }
+    
+    .signup-title {
+        font-size: 28px;
+    }
+    
+    .signup-subtitle {
+        font-size: 15px;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    .signup-btn {
+        padding: 14px;
+        font-size: 16px;
+    }
+}
+
+/* Input Autofill Styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.8) inset !important;
+    -webkit-text-fill-color: #1d1d1f !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Smooth Scroll */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Selection Color */
+::selection {
+    background: rgba(255, 204, 0, 0.3);
+    color: #1d1d1f;
+}
+
+::-moz-selection {
+    background: rgba(255, 204, 0, 0.3);
+    color: #1d1d1f;
+}

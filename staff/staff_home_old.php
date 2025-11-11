@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../components/sidebar_config.php';
 
 // Check if database connection exists
 if (!isset($conn)) {
@@ -86,6 +87,12 @@ if (count($words) >= 2) {
 } else {
     $initials = strtoupper(substr($staff['username'], 0, 2));
 }
+
+// Initialize sidebar menu for staff dashboard (without fraud)
+$sidebar_menu = initSidebar('staff', 'staff_home_old.php');
+
+// Set logout path
+$logout_path = '../signup_and_login/logout.php';
 ?>
 
 <!DOCTYPE html>
@@ -160,6 +167,17 @@ if (count($words) >= 2) {
             pointer-events: none;
             z-index: 0;
             filter: blur(40px);
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 0;
+            margin-top: 80px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .main-wrapper.sidebar-open {
+            margin-left: 280px;
         }
 
         .container {
@@ -464,6 +482,10 @@ if (count($words) >= 2) {
                 max-width: 600px;
                 margin: 0 auto;
             }
+
+            .main-wrapper.sidebar-open {
+                margin-left: 0;
+            }
         }
 
         @media (max-width: 768px) {
@@ -497,103 +519,119 @@ if (count($words) >= 2) {
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="banner-section">
-            <img src="../sponser/image.png" alt="Staff Dashboard" class="banner-image">
-            <div class="live-indicator">
-                <div class="live-dot" id="live-dot"></div>
-                <span id="live-status">Live</span>
-            </div>
-        </div>
+    <?php 
+    // Include sidebar component
+    include __DIR__ . '/../components/sidebar.php'; 
+    
+    // Include header component
+    include __DIR__ . '/../components/header.php';
+    ?>
 
-        <div class="main-content">
-            <div class="profile-section">
-                <div class="profile-picture-container">
-                    <div class="profile-picture">
-                        <span><?php echo $initials; ?></span>
-                    </div>
-                    <div class="profile-name">
-                        <?php echo htmlspecialchars($staff['username']); ?>
-                    </div>
+    <!-- Main Wrapper -->
+    <div class="main-wrapper" id="mainWrapper">
+        <div class="container">
+            <div class="banner-section">
+                <img src="../sponser/image.png" alt="Staff Dashboard" class="banner-image">
+                <div class="live-indicator">
+                    <div class="live-dot" id="live-dot"></div>
+                    <span id="live-status">Live</span>
                 </div>
+            </div>
 
-                <div class="profile-details">
-                    <div class="detail-field">
-                        <label class="detail-label">Username</label>
-                        <div class="detail-value">
+            <div class="main-content">
+                <div class="profile-section">
+                    <div class="profile-picture-container">
+                        <div class="profile-picture">
+                            <span><?php echo $initials; ?></span>
+                        </div>
+                        <div class="profile-name">
                             <?php echo htmlspecialchars($staff['username']); ?>
                         </div>
                     </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Email Address</label>
-                        <div class="detail-value">
-                            <?php echo htmlspecialchars($staff['email']); ?>
+                    <div class="profile-details">
+                        <div class="detail-field">
+                            <label class="detail-label">Username</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($staff['username']); ?>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Phone Number</label>
-                        <div class="detail-value">
-                            <?php echo htmlspecialchars($staff['phone_no'] ?? 'Not provided'); ?>
+                        <div class="detail-field">
+                            <label class="detail-label">Email Address</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($staff['email']); ?>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Role</label>
-                        <div class="detail-value">
-                            <?php echo htmlspecialchars($staff['user_role']); ?>
+                        <div class="detail-field">
+                            <label class="detail-label">Phone Number</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($staff['phone_no'] ?? 'Not provided'); ?>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Member Since</label>
-                        <div class="detail-value">
-                            <?php echo date('F j, Y', strtotime($staff['created_at'])); ?>
+                        <div class="detail-field">
+                            <label class="detail-label">Role</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($staff['user_role']); ?>
+                            </div>
+                        </div>
+
+                        <div class="detail-field">
+                            <label class="detail-label">Member Since</label>
+                            <div class="detail-value">
+                                <?php echo date('F j, Y', strtotime($staff['created_at'])); ?>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="dashboard-section">
-                <div class="dashboard-card" onclick="openDashboard('children-needing')">
-                    <h3 class="card-title">Children Needing Sponsors</h3>
-                    <p class="card-description">View and manage children waiting for sponsorship opportunities</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Unsponsored</span>
-                        <div class="count-number" id="children-needing-count"><?php echo $children_needing_sponsors; ?></div>
+                <div class="dashboard-section">
+                    <div class="dashboard-card" onclick="openDashboard('children-needing')">
+                        <h3 class="card-title">Children Needing Sponsors</h3>
+                        <p class="card-description">View and manage children waiting for sponsorship opportunities</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Unsponsored</span>
+                            <div class="count-number" id="children-needing-count"><?php echo $children_needing_sponsors; ?></div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-card" onclick="openDashboard('children-having')">
-                    <h3 class="card-title">Children Having Sponsors</h3>
-                    <p class="card-description">Track all children currently under active sponsorship</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Sponsored</span>
-                        <div class="count-number" id="children-having-count"><?php echo $children_having_sponsors; ?></div>
+                    <div class="dashboard-card" onclick="openDashboard('children-having')">
+                        <h3 class="card-title">Children Having Sponsors</h3>
+                        <p class="card-description">Track all children currently under active sponsorship</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Sponsored</span>
+                            <div class="count-number" id="children-having-count"><?php echo $children_having_sponsors; ?></div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-card" onclick="openDashboard('total-sponsors')">
-                    <h3 class="card-title">Total Sponsors</h3>
-                    <p class="card-description">View complete list of all registered sponsors in the system</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Active Sponsors</span>
-                        <div class="count-number" id="total-sponsors-count"><?php echo $total_sponsors; ?></div>
+                    <div class="dashboard-card" onclick="openDashboard('total-sponsors')">
+                        <h3 class="card-title">Total Sponsors</h3>
+                        <p class="card-description">View complete list of all registered sponsors in the system</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Active Sponsors</span>
+                            <div class="count-number" id="total-sponsors-count"><?php echo $total_sponsors; ?></div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="dashboard-card fraud-card" onclick="openDashboard('fraud-cases')">
-                    <h3 class="card-title">Fraud Cases</h3>
-                    <p class="card-description">Review and manage flagged accounts requiring investigation</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Flagged Accounts</span>
-                        <div class="count-number" id="fraud-cases-count"><?php echo $fraud_cases; ?></div>
+                    <div class="dashboard-card fraud-card" onclick="openDashboard('fraud-cases')">
+                        <h3 class="card-title">Fraud Cases</h3>
+                        <p class="card-description">Review and manage flagged accounts requiring investigation</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Flagged Accounts</span>
+                            <div class="count-number" id="fraud-cases-count"><?php echo $fraud_cases; ?></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <?php 
+    // Include common scripts
+    include __DIR__ . '/../components/common_scripts.php';
+    ?>
 
     <script>
         // Function to open dashboard detail pages

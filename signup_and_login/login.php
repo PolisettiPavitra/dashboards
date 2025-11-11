@@ -68,7 +68,7 @@ try {
             $redirect_url = '';
             switch ($row['user_role']) {
                 case 'Sponsor':
-                    $redirect_url = '../sponser/sponser_profile.php';
+                    $redirect_url = '../sponser/sponser_main_page.php';
                     break;
                 case 'Staff':
                     $redirect_url = '../staff/staff_home_old.php';

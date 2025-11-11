@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../components/sidebar_config.php';
 
 // Check if database connection exists
 if (!isset($conn)) {
@@ -82,6 +83,12 @@ $conn->close();
 
 // Calculate initials
 $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_data['last_name'], 0, 1));
+
+// Initialize sidebar menu for sponsor
+$sidebar_menu = initSidebar('sponsor', 'sponser_main_page.php');
+
+// Set logout path
+$logout_path = '../signup_and_login/logout.php';
 ?>
 
 <!DOCTYPE html>
@@ -92,7 +99,6 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
     <title>Sponsor Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        /* All your existing styles remain the same */
         * {
             margin: 0;
             padding: 0;
@@ -156,6 +162,17 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
             pointer-events: none;
             z-index: 0;
             filter: blur(40px);
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 0;
+            margin-top: 80px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .main-wrapper.sidebar-open {
+            margin-left: 280px;
         }
 
         .container {
@@ -526,6 +543,10 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
                 max-width: 600px;
                 margin: 0 auto;
             }
+
+            .main-wrapper.sidebar-open {
+                margin-left: 0;
+            }
         }
 
         @media (max-width: 768px) {
@@ -566,96 +587,107 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="banner-section">
-            <img src="image.png" alt="Sponsor Dashboard" class="banner-image">
-            <div class="live-indicator">
-                <div class="live-dot" id="live-dot"></div>
-                <span id="live-status">Live</span>
-            </div>
-        </div>
+    <?php 
+    // Include sidebar component
+    include __DIR__ . '/../components/sidebar.php'; 
+    
+    // Include header component
+    include __DIR__ . '/../components/header.php';
+    ?>
 
-        <div class="main-content">
-            <div class="profile-section">
-                <div class="profile-picture-container">
-                    <div class="profile-picture" onclick="document.getElementById('profilePictureInput').click()">
-                        <?php if (!empty($user_data['profile_picture']) && file_exists($user_data['profile_picture'])): ?>
-                            <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>" alt="Profile Picture" id="profilePictureImg">
-                        <?php else: ?>
-                            <span id="profileInitials"><?php echo $initials; ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <input type="file" id="profilePictureInput" accept="image/jpeg,image/jpg,image/png">
-                    <div class="profile-name">
-                        <?php echo htmlspecialchars($user_data['first_name'] . ' ' . $user_data['last_name']); ?>
-                    </div>
+    <!-- Main Wrapper -->
+    <div class="main-wrapper" id="mainWrapper">
+        <div class="container">
+            <div class="banner-section">
+                <img src="image.png" alt="Sponsor Dashboard" class="banner-image">
+                <div class="live-indicator">
+                    <div class="live-dot" id="live-dot"></div>
+                    <span id="live-status">Live</span>
                 </div>
+            </div>
 
-                <div class="profile-details">
-                    <div class="detail-field">
-                        <label class="detail-label">Full Name</label>
-                        <div class="detail-value">
+            <div class="main-content">
+                <div class="profile-section">
+                    <div class="profile-picture-container">
+                        <div class="profile-picture" onclick="document.getElementById('profilePictureInput').click()">
+                            <?php if (!empty($user_data['profile_picture']) && file_exists($user_data['profile_picture'])): ?>
+                                <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>" alt="Profile Picture" id="profilePictureImg">
+                            <?php else: ?>
+                                <span id="profileInitials"><?php echo $initials; ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <input type="file" id="profilePictureInput" accept="image/jpeg,image/jpg,image/png">
+                        <div class="profile-name">
                             <?php echo htmlspecialchars($user_data['first_name'] . ' ' . $user_data['last_name']); ?>
                         </div>
                     </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Email Address</label>
-                        <div class="detail-value">
-                            <?php echo htmlspecialchars($user_data['email']); ?>
+                    <div class="profile-details">
+                        <div class="detail-field">
+                            <label class="detail-label">Full Name</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($user_data['first_name'] . ' ' . $user_data['last_name']); ?>
+                            </div>
+                        </div>
+
+                        <div class="detail-field">
+                            <label class="detail-label">Email Address</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($user_data['email']); ?>
+                            </div>
+                        </div>
+
+                        <div class="detail-field">
+                            <label class="detail-label">Phone Number</label>
+                            <div class="detail-value">
+                                <?php echo htmlspecialchars($user_data['phone_no']); ?>
+                            </div>
+                        </div>
+
+                        <div class="detail-field">
+                            <label class="detail-label">Member Since</label>
+                            <div class="detail-value">
+                                <?php echo date('F j, Y', strtotime($user_data['created_at'])); ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <div class="dashboard-card" onclick="openDashboard('sponsored-children')">
+                        <h3 class="card-title">Sponsored Children</h3>
+                        <p class="card-description">View and manage all the children you are currently sponsoring</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Total Sponsored</span>
+                            <div class="count-number" id="sponsored-children-count"><?php echo $sponsored_children; ?></div>
                         </div>
                     </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Phone Number</label>
-                        <div class="detail-value">
-                            <?php echo htmlspecialchars($user_data['phone_no']); ?>
+                    <div class="dashboard-card donation-card" onclick="openDashboard('donation-history')">
+                        <h3 class="card-title">Donation History</h3>
+                        <p class="card-description">Track all your donations and payment records</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Total Donated</span>
+                            <div class="count-number" id="total-donations-count">₹<?php echo number_format($total_donated, 2); ?></div>
                         </div>
                     </div>
 
-                    <div class="detail-field">
-                        <label class="detail-label">Member Since</label>
-                        <div class="detail-value">
-                            <?php echo date('F j, Y', strtotime($user_data['created_at'])); ?>
+                    <div class="dashboard-card" onclick="openDashboard('reports-updates')">
+                        <h3 class="card-title">Reports & Updates</h3>
+                        <p class="card-description">Read progress reports and updates about sponsored children</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">New Reports</span>
+                            <div class="count-number" id="reports-count"><?php echo $new_reports; ?></div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div class="dashboard-section">
-                <div class="dashboard-card" onclick="openDashboard('sponsored-children')">
-                    <h3 class="card-title">Sponsored Children</h3>
-                    <p class="card-description">View and manage all the children you are currently sponsoring</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Total Sponsored</span>
-                        <div class="count-number" id="sponsored-children-count"><?php echo $sponsored_children; ?></div>
-                    </div>
-                </div>
-
-                <div class="dashboard-card donation-card" onclick="openDashboard('donation-history')">
-                    <h3 class="card-title">Donation History</h3>
-                    <p class="card-description">Track all your donations and payment records</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Total Donated</span>
-                        <div class="count-number" id="total-donations-count">₹<?php echo number_format($total_donated, 2); ?></div>
-                    </div>
-                </div>
-
-                <div class="dashboard-card" onclick="openDashboard('reports-updates')">
-                    <h3 class="card-title">Reports & Updates</h3>
-                    <p class="card-description">Read progress reports and updates about sponsored children</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">New Reports</span>
-                        <div class="count-number" id="reports-count"><?php echo $new_reports; ?></div>
-                    </div>
-                </div>
-
-                <div class="dashboard-card" onclick="openDashboard('timeline')">
-                    <h3 class="card-title">Timeline</h3>
-                    <p class="card-description">View your sponsorship journey and important milestones</p>
-                    <div class="card-stats">
-                        <span class="card-stats-label">Recent Events</span>
-                        <div class="count-number" id="timeline-events-count"><?php echo $recent_events; ?></div>
+                    <div class="dashboard-card" onclick="openDashboard('timeline')">
+                        <h3 class="card-title">Timeline</h3>
+                        <p class="card-description">View your sponsorship journey and important milestones</p>
+                        <div class="card-stats">
+                            <span class="card-stats-label">Recent Events</span>
+                            <div class="count-number" id="timeline-events-count"><?php echo $recent_events; ?></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -667,6 +699,11 @@ $initials = strtoupper(substr($user_data['first_name'], 0, 1) . substr($user_dat
         <span class="toast-icon" id="toastIcon"></span>
         <span class="toast-message" id="toastMessage"></span>
     </div>
+
+    <?php 
+    // Include common scripts
+    include __DIR__ . '/../components/common_scripts.php';
+    ?>
 
     <script>
         // Store sponsor ID globally

@@ -121,7 +121,7 @@
             <div class="forgot-icon">🔑</div>
             <h3 class="forgot-title">Having Trouble Logging In?</h3>
             <p class="forgot-description">Did you forget your password?</p>
-            <a href="forgot_password.php" class="forgot-reset-btn">Forgot Password</a>
+            <a href="forgot_password.html" class="forgot-reset-btn">Forgot Password</a>
             <button class="forgot-cancel-btn" id="cancelForgotBtn">Try Again</button>
         </div>
     </div>

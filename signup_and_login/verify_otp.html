@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Code - Sponsor a Child</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo">
+                    <div class="logo-placeholder">
+                        <img src="../image_01.png" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+        
+    <main class="main-content">
+        <div class="login-container">
+            <h1 class="login-title">Enter Verification Code</h1>
+            <p class="subtitle">We sent a 6-digit code to your email</p>
+            
+            <form class="login-form active" id="verifyOtpForm">
+                <input type="hidden" id="email" name="email">
+                
+                <div class="form-group">
+                    <label for="otp">Verification Code</label>
+                    <input 
+                        type="text" 
+                        id="otp" 
+                        name="otp" 
+                        required 
+                        maxlength="6" 
+                        pattern="[0-9]{6}"
+                        placeholder="000000"
+                        autocomplete="off"
+                        style="text-align: center; font-size: 24px; letter-spacing: 10px;">
+                </div>
+                
+                <button type="submit" class="login-btn" id="verifyBtn">
+                    <span class="btn-text">Verify Code</span>
+                    <span class="btn-spinner" style="display: none;">Verifying...</span>
+                </button>
+                
+                <p class="signup-link">
+                    Didn't receive code? <a href="#" id="resendLink" class="signup-link-btn">Resend Code</a>
+                </p>
+            </form>
+        </div>
+    </main>
+
+    <div class="alert-overlay" id="alertOverlay">
+        <div class="alert-modal">
+            <div class="alert-icon" id="alertIcon">✅</div>
+            <h3 class="alert-title" id="alertTitle">Success</h3>
+            <p class="alert-message" id="alertMessage"></p>
+            <button class="alert-btn" id="alertOkBtn">OK</button>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Sponsor a Child Organization. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Get email from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        
+        if (!email) {
+            window.location.href = 'forgot_password.html';
+        }
+        
+        document.getElementById('email').value = email;
+
+        const form = document.getElementById('verifyOtpForm');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const btnText = verifyBtn.querySelector('.btn-text');
+        const btnSpinner = verifyBtn.querySelector('.btn-spinner');
+        const alertOverlay = document.getElementById('alertOverlay');
+        const alertOkBtn = document.getElementById('alertOkBtn');
+        const resendLink = document.getElementById('resendLink');
+
+        // Auto-focus OTP input
+        document.getElementById('otp').focus();
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            verifyBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnSpinner.style.display = 'inline';
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('verify_otp.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('alertIcon').textContent = '✅';
+                    document.getElementById('alertTitle').textContent = 'Verified!';
+                    document.getElementById('alertMessage').textContent = data.message;
+                    alertOverlay.classList.add('show');
+                    
+                    alertOkBtn.onclick = function() {
+                        window.location.href = 'reset_password.html?token=' + data.token;
+                    };
+                } else {
+                    document.getElementById('alertIcon').textContent = '❌';
+                    document.getElementById('alertTitle').textContent = 'Error';
+                    document.getElementById('alertMessage').textContent = data.message;
+                    alertOverlay.classList.add('show');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('alertIcon').textContent = '❌';
+                document.getElementById('alertTitle').textContent = 'Connection Error';
+                document.getElementById('alertMessage').textContent = 'Unable to connect to server.';
+                alertOverlay.classList.add('show');
+            }
+
+            verifyBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
+        });
+
+        // Resend OTP
+        resendLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('email', email);
+            
+            try {
+                const response = await fetch('send_otp.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('alertIcon').textContent = '✉️';
+                document.getElementById('alertTitle').textContent = 'Code Resent';
+                document.getElementById('alertMessage').textContent = 'A new verification code has been sent to your email.';
+                alertOverlay.classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+        alertOkBtn.addEventListener('click', function() {
+            alertOverlay.classList.remove('show');
+        });
+    </script>
+
+    <style>
+        .subtitle {
+            text-align: center;
+            color: #6e6e73;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .alert-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .alert-modal {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 204, 0, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .alert-overlay.show .alert-modal {
+            transform: scale(1);
+        }
+        
+        .alert-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 16px;
+        }
+        
+        .alert-message {
+            font-size: 16px;
+            color: #6e6e73;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .alert-btn {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: #1d1d1f;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+        
+        .alert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
+        }
+    </style>
+</body>
+</html>

@@ -95,7 +95,6 @@ $logout_path = '../signup_and_login/logout.php';
             overflow-x: hidden;
         }
 
-        /* MEDIUM YELLOW SPLASH IN CENTER */
         body::before {
             content: '';
             position: fixed;
@@ -147,7 +146,6 @@ $logout_path = '../signup_and_login/logout.php';
             filter: blur(40px);
         }
 
-        /* Main Content */
         .main-wrapper {
             margin-left: 0;
             margin-top: 80px;
@@ -169,7 +167,6 @@ $logout_path = '../signup_and_login/logout.php';
             flex-direction: column;
         }
 
-        /* Welcome Section */
         .welcome-section {
             text-align: center;
             margin-bottom: 4rem;
@@ -190,7 +187,6 @@ $logout_path = '../signup_and_login/logout.php';
             font-weight: 500;
         }
 
-        /* Main Action Buttons Container */
         .action-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -201,7 +197,6 @@ $logout_path = '../signup_and_login/logout.php';
             align-items: center;
         }
 
-        /* Action Button Cards */
         .action-card {
             background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(20px);
@@ -247,7 +242,6 @@ $logout_path = '../signup_and_login/logout.php';
             opacity: 1;
         }
 
-        /* Icon Circle */
         .action-icon {
             width: 120px;
             height: 120px;
@@ -270,7 +264,6 @@ $logout_path = '../signup_and_login/logout.php';
             box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
         }
 
-        /* Action Title */
         .action-title {
             font-size: 2rem;
             font-weight: 800;
@@ -281,7 +274,6 @@ $logout_path = '../signup_and_login/logout.php';
             z-index: 1;
         }
 
-        /* Action Description */
         .action-description {
             font-size: 1rem;
             color: rgba(0, 0, 0, 0.6);
@@ -292,7 +284,6 @@ $logout_path = '../signup_and_login/logout.php';
             z-index: 1;
         }
 
-        /* Preview Label */
         .preview-label {
             position: absolute;
             top: 24px;
@@ -309,7 +300,6 @@ $logout_path = '../signup_and_login/logout.php';
             letter-spacing: 1px;
         }
 
-        /* Sample Section */
         .sample-section {
             margin-top: 5rem;
             padding: 3rem;
@@ -396,33 +386,26 @@ $logout_path = '../signup_and_login/logout.php';
 </head>
 <body>
     <?php 
-    // Include sidebar component
-    include __DIR__ . '/../components/sidebar.php'; 
-    
-    // Include header component
+    // FIXED: Header first, then Sidebar
     include __DIR__ . '/../components/header.php';
+    include __DIR__ . '/../components/sidebar.php';
     ?>
 
-    <!-- Main Wrapper -->
     <div class="main-wrapper" id="mainWrapper">
         <div class="container">
-            <!-- Welcome Section -->
             <div class="welcome-section">
                 <h1 class="welcome-title">Welcome, <?php echo htmlspecialchars($sponsor['username']); ?>!</h1>
                 <p class="welcome-subtitle">Choose an option to get started</p>
             </div>
 
-            <!-- Main Action Buttons -->
             <div class="action-container">
-                <!-- My Profile Card -->
                 <a href="sponser_profile.php" class="action-card">
                     <div class="action-icon">👤</div>
                     <h2 class="action-title">My Profile</h2>
                     <p class="action-description">View and manage your personal information and account settings</p>
                 </a>
 
-                <!-- My Home Card -->
-                <a href="sponser_home.php" class="action-card">
+                <a href="my_home.php" class="action-card">
                     <div class="preview-label">Preview</div>
                     <div class="action-icon">🏠</div>
                     <h2 class="action-title">My Home</h2>
@@ -430,7 +413,6 @@ $logout_path = '../signup_and_login/logout.php';
                 </a>
             </div>
 
-            <!-- Sample/Preview Section -->
             <div class="sample-section">
                 <h3 class="sample-title">Quick Stats</h3>
                 <div class="sample-grid">
@@ -452,12 +434,10 @@ $logout_path = '../signup_and_login/logout.php';
     </div>
 
     <?php 
-    // Include common scripts
     include __DIR__ . '/../components/common_scripts.php';
     ?>
 
     <script>
-        // Page load animations
         document.addEventListener('DOMContentLoaded', function() {
             const cards = document.querySelectorAll('.action-card');
             

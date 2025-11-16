@@ -2,7 +2,7 @@
 session_start();
 
 // Test data (remove when login is implemented)
-$_SESSION['user_id'] = 1;
+//$_SESSION['user_id'] = 1;
 
 require_once __DIR__ . '/../db_config.php';
 

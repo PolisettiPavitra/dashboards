@@ -7,3 +7,27 @@ Stack trace:
 [10-Nov-2025 11:25:36 Europe/Berlin] SQL Error: 
 [10-Nov-2025 11:28:38 Europe/Berlin] Registration error: Unknown column 'contact_number' in 'field list'
 [10-Nov-2025 11:28:38 Europe/Berlin] SQL Error: 
+[11-Nov-2025 12:33:40 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\dashboards\db_config.php:9
+Stack trace:
+#0 C:\xampp\htdocs\dashboards\db_config.php(9): mysqli->__construct('127.0.0.1', 'root', Object(SensitiveParameterValue), 'final_pari')
+#1 C:\xampp\htdocs\dashboards\signup_and_login\signup.php(27): require_once('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\dashboards\db_config.php on line 9
+[11-Nov-2025 12:34:35 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\dashboards\db_config.php:9
+Stack trace:
+#0 C:\xampp\htdocs\dashboards\db_config.php(9): mysqli->__construct('127.0.0.1', 'root', Object(SensitiveParameterValue), 'final_pari')
+#1 C:\xampp\htdocs\dashboards\signup_and_login\signup.php(27): require_once('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\dashboards\db_config.php on line 9
+[11-Nov-2025 12:38:03 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\dashboards\db_config.php:9
+Stack trace:
+#0 C:\xampp\htdocs\dashboards\db_config.php(9): mysqli->__construct('127.0.0.1', 'root', Object(SensitiveParameterValue), 'final_pari')
+#1 C:\xampp\htdocs\dashboards\signup_and_login\signup.php(27): require_once('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\dashboards\db_config.php on line 9
+[11-Nov-2025 12:40:03 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\dashboards\db_config.php:9
+Stack trace:
+#0 C:\xampp\htdocs\dashboards\db_config.php(9): mysqli->__construct('127.0.0.1', 'root', Object(SensitiveParameterValue), 'final_pari')
+#1 C:\xampp\htdocs\dashboards\signup_and_login\signup.php(32): require_once('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\dashboards\db_config.php on line 9

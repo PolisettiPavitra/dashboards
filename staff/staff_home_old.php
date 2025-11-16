@@ -521,10 +521,9 @@ $logout_path = '../signup_and_login/logout.php';
 <body>
     <?php 
     // Include sidebar component
-    include __DIR__ . '/../components/sidebar.php'; 
-    
-    // Include header component
-    include __DIR__ . '/../components/header.php';
+// FIXED: Header first, then Sidebar
+include __DIR__ . '/../components/header.php';
+include __DIR__ . '/../components/sidebar.php';
     ?>
 
     <!-- Main Wrapper -->

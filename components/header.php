@@ -128,39 +128,5 @@
         </div>
         <div class="logo">LOGO</div>
     </div>
-    <a href="#" onclick="handleLogout(); return false;" class="logout-btn">Logout</a>
+    <a href="<?php echo htmlspecialchars($logout_path ?? '../signup_and_login/logout.php'); ?>" class="logout-btn">Logout</a>
 </header>
-
-<script>
-function handleLogout() {
-    // Show confirmation dialog
-    if (confirm('Are you sure you want to logout?')) {
-        // Redirect to logout.php
-        window.location.href = '../signup_and_login/logout.php';
-    }
-}
-
-// Hamburger toggle function
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const header = document.getElementById('header');
-    const hamburger = document.getElementById('hamburger');
-    const mainContent = document.getElementById('mainContent');
-    
-    if (sidebar) {
-        sidebar.classList.toggle('open');
-    }
-    
-    if (header) {
-        header.classList.toggle('sidebar-open');
-    }
-    
-    if (hamburger) {
-        hamburger.classList.toggle('active');
-    }
-    
-    if (mainContent) {
-        mainContent.classList.toggle('sidebar-open');
-    }
-}
-</script>

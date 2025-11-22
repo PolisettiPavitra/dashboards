@@ -54,8 +54,8 @@ function getSidebarMenu($menu_type, $current_page = '') {
                 'items' => [
                     [
                         'label' => 'Children',
-                        'url' => $basePath . 'owner/child.php',
-                        'active' => ($current_page === 'child.php')
+                        'url' => $basePath . 'staff/child_management.php',
+                        'active' => ($current_page === 'child_management.php')
                     ],
                     [
                         'label' => 'Donors',

@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->execute()) {
             $success = "Child profile created successfully!";
             // Redirect after 2 seconds
-            header("refresh:2;url=view_children.php");
+            header("refresh:2;url=child_management.php");
         } else {
             $error = "Database error: " . $stmt->error;
         }
@@ -589,7 +589,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <span></span>
                             <span>Create Child Profile</span>
                         </button>
-                        <a href="view_children.php" class="btn btn-secondary">
+                        <a href="child_management.php" class="btn btn-secondary">
                             <span>←</span>
                             <span>Back to List</span>
                         </a>

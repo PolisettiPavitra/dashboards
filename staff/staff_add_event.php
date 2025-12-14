@@ -188,12 +188,19 @@ $logout_path = '../signup_and_login/logout.php';
             z-index: 1;
         }
 
-        .back-btn {
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .back-btn,
+        .calendar-btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 12px 20px;
-            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
@@ -201,12 +208,24 @@ $logout_path = '../signup_and_login/logout.php';
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s ease;
-            margin-bottom: 24px;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .calendar-btn {
+            background: rgba(102, 126, 234, 0.3);
         }
 
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.25);
             transform: translateX(-4px);
+        }
+
+        .calendar-btn:hover {
+            background: rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
         }
 
         .glass-card {
@@ -386,10 +405,16 @@ $logout_path = '../signup_and_login/logout.php';
     ?>
 
     <div class="container">
-        <a href="child_edit.php?id=<?php echo $child_id; ?>" class="back-btn">
-            <span>←</span>
-            <span>Back to Profile</span>
-        </a>
+        <div class="button-group">
+            <a href="child_edit.php?id=<?php echo $child_id; ?>" class="back-btn">
+                <span>←</span>
+                <span>Back to Profile</span>
+            </a>
+            <a href="staff_calendar.php" class="calendar-btn">
+                <span>📅</span>
+                <span>View Calendar</span>
+            </a>
+        </div>
 
         <div class="glass-card">
             <div class="card-header">
@@ -473,20 +498,34 @@ $logout_path = '../signup_and_login/logout.php';
     </div>
 
     <script>
-        // Initialize TinyMCE Rich Text Editor
-        tinymce.init({
-            selector: '#description',
-            height: 300,
-            menubar: false,
-            plugins: [
-                'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
-                'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                'insertdatetime', 'table', 'wordcount'
-            ],
-            toolbar: 'undo redo | formatselect | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | removeformat',
-            content_style: 'body { font-family: Inter, sans-serif; font-size: 14px; }',
-            placeholder: 'Describe the event. Include what will happen, who can attend, and any special instructions...'
-        });
+        // Wait for TinyMCE to load before initializing
+        function initializeTinyMCE() {
+            if (typeof tinymce !== 'undefined') {
+                tinymce.init({
+                    selector: '#description',
+                    height: 300,
+                    menubar: false,
+                    plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                        'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'table', 'wordcount'
+                    ],
+                    toolbar: 'undo redo | formatselect | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | removeformat',
+                    content_style: 'body { font-family: Inter, sans-serif; font-size: 14px; }',
+                    placeholder: 'Describe the event. Include what will happen, who can attend, and any special instructions...'
+                });
+            } else {
+                // Retry after a short delay if TinyMCE hasn't loaded yet
+                setTimeout(initializeTinyMCE, 100);
+            }
+        }
+
+        // Initialize TinyMCE when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeTinyMCE);
+        } else {
+            initializeTinyMCE();
+        }
 
         // Update button text based on checkbox
         const checkbox = document.getElementById('is_public');

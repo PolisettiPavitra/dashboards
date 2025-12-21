@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../db_config.php';
 require_once __DIR__ . '/../components/sidebar_config.php';
 require_once __DIR__ . '/../includes/fraud_services.php';
-
+require_once __DIR__ . '/../includes/sponsor_access_check.php';
 
 if (!isset($conn)) {
     die("Database connection failed. Please check db_config.php");
@@ -56,14 +56,24 @@ $sponsor = $result->fetch_assoc();
 $sponsor_id = $sponsor['sponsor_id'];
 $stmt->close();
 
-// Get fraud status
+// Get fraud status using access check
+$access_data = checkSponsorAccessRestrictions($conn, basename(__FILE__));
+$donation_status = $access_data['donation_status'];
+
+// Get fraud status details
 $flag_status = getSponsorFlagStatus($conn, $sponsor_id);
 $is_flagged = $flag_status && ($flag_status['is_flagged'] || $flag_status['fraud_case_id']);
 
-// Check if appeal exists
-$has_pending_appeal = false;
+// Determine status
+$is_blocked = ($donation_status['status'] === 'blocked');
+$is_frozen = ($donation_status['status'] === 'frozen');
+$is_restricted = ($donation_status['status'] === 'restricted');
+$is_under_review = ($donation_status['status'] === 'under_review');
+
+// Get case ID and check for appeals
 $case_id = null;
 $case_status = null;
+$has_pending_appeal = false;
 
 if ($is_flagged && $flag_status['fraud_case_id']) {
     $case_id = $flag_status['fraud_case_id'];
@@ -76,6 +86,37 @@ if ($is_flagged && $flag_status['fraud_case_id']) {
     $stmt->bind_param('i', $case_id);
     $stmt->execute();
     $has_pending_appeal = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+}
+
+// For blocked users, make EXTRA sure we get the case_id
+if ($is_blocked && !$case_id) {
+    $stmt = $conn->prepare("
+        SELECT fraud_case_id, status 
+        FROM fraud_cases 
+        WHERE sponsor_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 1
+    ");
+    $stmt->bind_param('i', $sponsor_id);
+    $stmt->execute();
+    $case_result = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    
+    if ($case_result) {
+        $case_id = $case_result['fraud_case_id'];
+        $case_status = $case_result['status'];
+        
+        // Check if appeal exists
+        $stmt = $conn->prepare("
+            SELECT appeal_id FROM fraud_appeals 
+            WHERE fraud_case_id = ? AND status = 'pending'
+        ");
+        $stmt->bind_param('i', $case_id);
+        $stmt->execute();
+        $has_pending_appeal = $stmt->get_result()->num_rows > 0;
+        $stmt->close();
+    }
 }
 
 // Calculate initials
@@ -89,7 +130,7 @@ if (count($words) >= 2) {
 $sidebar_menu = initSidebar('sponsor', 'sponser_main_page.php');
 $logout_path = '../signup_and_login/logout.php';
 
-// Alert config
+// Alert config for frozen/restricted/under_review
 $alert_configs = [
     'under_review' => [
         'color' => '#f59e0b',
@@ -122,14 +163,6 @@ $alert_configs = [
         'icon' => '🚫',
         'title' => 'Account Blocked',
         'message' => 'Please submit an appeal to restore access.'
-    ],
-    'cleared' => [
-        'color' => '#16a34a',
-        'bg' => 'rgba(22, 163, 74, 0.12)',
-        'border' => 'rgba(22, 163, 74, 0.3)',
-        'icon' => '✅',
-        'title' => 'Account Cleared',
-        'message' => 'Your account has been reviewed and cleared!'
     ]
 ];
 
@@ -211,7 +244,141 @@ $conn->close();
             filter: blur(40px);
         }
 
-        /* COMPACT FRAUD BANNER */
+        /* Hide sidebar and adjust layout for blocked users */
+        <?php if ($is_blocked): ?>
+        #sidebar {
+            display: none !important;
+        }
+        
+        #header {
+            display: none !important;
+        }
+        
+        .main-wrapper {
+            margin-left: 0 !important;
+            margin-top: 0 !important;
+        }
+        <?php endif; ?>
+
+        /* BLOCKED USER FULL SCREEN OVERLAY */
+        .blocked-overlay {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 3px solid #dc2626;
+            border-radius: 32px;
+            padding: 4rem;
+            margin: 4rem auto;
+            max-width: 900px;
+            box-shadow: 0 20px 60px rgba(220, 38, 38, 0.3);
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .blocked-icon {
+            font-size: 5rem;
+            margin-bottom: 2rem;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .blocked-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #dc2626;
+            margin-bottom: 1rem;
+        }
+
+        .blocked-message {
+            font-size: 1.1rem;
+            color: #3f3f46;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .blocked-reason-box {
+            background: rgba(220, 38, 38, 0.1);
+            border: 2px solid rgba(220, 38, 38, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            text-align: left;
+        }
+
+        .blocked-reason-title {
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .blocked-reason-text {
+            color: #71717a;
+            line-height: 1.6;
+        }
+
+        .appeal-section {
+            background: rgba(254, 249, 195, 0.3);
+            border: 2px solid rgba(254, 240, 138, 0.5);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .appeal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #18181b;
+            margin-bottom: 1rem;
+        }
+
+        .appeal-btn {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            color: white;
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .appeal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(220, 38, 38, 0.5);
+            color: white;
+        }
+
+        .appeal-btn:disabled,
+        .appeal-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .logout-link {
+            display: inline-block;
+            margin-top: 2rem;
+            color: #71717a;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .logout-link:hover {
+            color: #18181b;
+        }
+
+        /* COMPACT FRAUD BANNER (for frozen/restricted/under_review) */
         .fraud-alert-banner {
             position: static;
             margin: 80px 0 0 0;
@@ -223,10 +390,10 @@ $conn->close();
             max-width: 1400px;
             margin: 0 auto;
             padding: 1rem 2.5rem;
-            background: <?php echo $is_flagged ? $alert_config['bg'] : 'transparent'; ?>;
+            background: <?php echo $is_flagged && !$is_blocked ? $alert_config['bg'] : 'transparent'; ?>;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid <?php echo $is_flagged ? $alert_config['border'] : 'transparent'; ?>;
+            border: 1px solid <?php echo $is_flagged && !$is_blocked ? $alert_config['border'] : 'transparent'; ?>;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             display: flex;
@@ -254,7 +421,7 @@ $conn->close();
         .fraud-alert-title {
             font-size: 0.95rem;
             font-weight: 700;
-            color: <?php echo $is_flagged ? $alert_config['color'] : 'inherit'; ?>;
+            color: <?php echo $is_flagged && !$is_blocked ? $alert_config['color'] : 'inherit'; ?>;
             margin-bottom: 0.25rem;
         }
 
@@ -288,6 +455,7 @@ $conn->close();
         .fraud-alert-btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            color: white;
         }
 
         .fraud-alert-btn-disabled {
@@ -450,44 +618,6 @@ $conn->close();
             letter-spacing: 1px;
         }
 
-        .sample-section {
-            margin-top: 5rem;
-            padding: 3rem;
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(20px);
-            border-radius: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-        }
-
-        .sample-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: rgba(0, 0, 0, 0.85);
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .sample-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-        }
-
-        .sample-item {
-            background: rgba(255, 255, 255, 0.5);
-            padding: 2rem;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .sample-item:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-        }
-
         @media (max-width: 1200px) {
             .main-wrapper.sidebar-open {
                 margin-left: 0;
@@ -503,6 +633,15 @@ $conn->close();
 
             .container {
                 padding: 1.5rem;
+            }
+
+            .blocked-overlay {
+                padding: 2rem;
+                margin: 2rem 1rem;
+            }
+
+            .blocked-title {
+                font-size: 1.75rem;
             }
 
             .welcome-title {
@@ -532,87 +671,131 @@ $conn->close();
             .action-title {
                 font-size: 1.5rem;
             }
-
-            .sample-section {
-                margin-top: 3rem;
-                padding: 2rem;
-            }
         }
     </style>
 </head>
 <body>
     <?php 
-    include __DIR__ . '/../components/header.php';
-    include __DIR__ . '/../components/sidebar.php';
+    // Only show header and sidebar for non-blocked users
+    if (!$is_blocked):
+        include __DIR__ . '/../components/header.php';
+        include __DIR__ . '/../components/sidebar.php';
+    endif;
     ?>
 
     <div class="main-wrapper" id="mainWrapper">
-        <?php if ($is_flagged && $case_status !== 'cleared'): ?>
-        <div class="fraud-alert-banner">
-            <div class="fraud-alert-content">
-                <div class="fraud-alert-left">
-                    <div class="fraud-alert-icon"><?php echo $alert_config['icon']; ?></div>
-                    <div class="fraud-alert-text">
-                        <div class="fraud-alert-title"><?php echo $alert_config['title']; ?></div>
-                        <div class="fraud-alert-message"><?php echo $alert_config['message']; ?></div>
+        <?php if ($is_blocked): ?>
+            <!-- ============================================ -->
+            <!-- BLOCKED USER VIEW - FULL SCREEN OVERLAY -->
+            <!-- ============================================ -->
+            <div class="container">
+                <div class="blocked-overlay">
+                    <div class="blocked-icon">🚫</div>
+                    <h1 class="blocked-title">Account Blocked</h1>
+                    <p class="blocked-message">
+                        Your account has been temporarily blocked due to suspicious activity or policy violations.
+                        Access to all features has been restricted.
+                    </p>
+
+                    <?php if ($donation_status['message']): ?>
+                    <div class="blocked-reason-box">
+                        <div class="blocked-reason-title">Reason for Block:</div>
+                        <div class="blocked-reason-text">
+                            <?php echo htmlspecialchars($donation_status['message']); ?>
+                        </div>
                     </div>
-                </div>
-                <?php if ($has_pending_appeal): ?>
-                    <button class="fraud-alert-btn fraud-alert-btn-disabled" disabled>
-                        ⏳ Appeal Pending
-                    </button>
-                <?php else: ?>
-                    <a href="sponsor_appeal_form.php?case_id=<?php echo $case_id; ?>" class="fraud-alert-btn fraud-alert-btn-primary">
-                        ✍️ Submit Appeal
+                    <?php endif; ?>
+
+                    <div class="appeal-section">
+                        <h2 class="appeal-title">📝 Submit an Appeal</h2>
+                        
+                        <?php if ($has_pending_appeal): ?>
+                            <div style="padding: 1.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 12px; color: #1e40af;">
+                                <strong>⏳ Your appeal is pending review</strong>
+                                <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+                                    Our team is reviewing your case. You'll be notified once a decision is made.
+                                </p>
+                            </div>
+                        <?php elseif ($case_id): ?>
+                            <p style="color: #71717a; margin-bottom: 1rem; line-height: 1.6;">
+                                If you believe this block is a mistake or have additional information to provide, 
+                                please click below to submit an appeal to our review team.
+                            </p>
+                            <a href="sponsor_appeal_form.php?case_id=<?php echo $case_id; ?>" class="appeal-btn">
+                                ✍️ Write an Appeal
+                            </a>
+                        <?php else: ?>
+                            <div style="padding: 1.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 12px; color: #dc2626;">
+                                <strong>⚠️ Unable to load case information</strong>
+                                <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+                                    Please contact support for assistance. Case ID could not be retrieved.
+                                </p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <a href="<?php echo $logout_path; ?>" class="logout-link">
+                        ← Logout
                     </a>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <div class="container">
-            <div class="welcome-section">
-                <h1 class="welcome-title">Welcome, <?php echo htmlspecialchars($sponsor['username']); ?>!</h1>
-                <p class="welcome-subtitle">Choose an option to get started</p>
-            </div>
-
-            <div class="action-container">
-                <a href="sponser_profile.php" class="action-card">
-                    <div class="action-icon">👤</div>
-                    <h2 class="action-title">My Profile</h2>
-                    <p class="action-description">View and manage your personal information and account settings</p>
-                </a>
-
-                <a href="my_home.php" class="action-card">
-                    <div class="preview-label">Preview</div>
-                    <div class="action-icon">🏠</div>
-                    <h2 class="action-title">My Home</h2>
-                    <p class="action-description">Access your dashboard, calendar, and sponsorship overview</p>
-                </a>
-            </div>
-
-            <div class="sample-section">
-                <h3 class="sample-title">Quick Stats</h3>
-                <div class="sample-grid">
-                    <div class="sample-item">
-                        <div style="font-size: 2.5rem; font-weight: 800; color: rgba(0, 0, 0, 0.85); margin-bottom: 0.5rem;">0</div>
-                        <div style="font-size: 0.9rem; color: rgba(0, 0, 0, 0.6); font-weight: 600;">Active Sponsorships</div>
-                    </div>
-                    <div class="sample-item">
-                        <div style="font-size: 2.5rem; font-weight: 800; color: rgba(0, 0, 0, 0.85); margin-bottom: 0.5rem;">₹0</div>
-                        <div style="font-size: 0.9rem; color: rgba(0, 0, 0, 0.6); font-weight: 600;">Total Contributions</div>
-                    </div>
-                    <div class="sample-item">
-                        <div style="font-size: 2.5rem; font-weight: 800; color: rgba(0, 0, 0, 0.85); margin-bottom: 0.5rem;">0</div>
-                        <div style="font-size: 0.9rem; color: rgba(0, 0, 0, 0.6); font-weight: 600;">Upcoming Events</div>
-                    </div>
                 </div>
             </div>
-        </div>
+
+        <?php else: ?>
+            <!-- ============================================ -->
+            <!-- NORMAL DASHBOARD (Frozen/Restricted/Normal) -->
+            <!-- ============================================ -->
+            
+            <?php if ($is_flagged && $case_status !== 'cleared'): ?>
+            <div class="fraud-alert-banner">
+                <div class="fraud-alert-content">
+                    <div class="fraud-alert-left">
+                        <div class="fraud-alert-icon"><?php echo $alert_config['icon']; ?></div>
+                        <div class="fraud-alert-text">
+                            <div class="fraud-alert-title"><?php echo $alert_config['title']; ?></div>
+                            <div class="fraud-alert-message"><?php echo $alert_config['message']; ?></div>
+                        </div>
+                    </div>
+                    <?php if ($has_pending_appeal): ?>
+                        <button class="fraud-alert-btn fraud-alert-btn-disabled" disabled>
+                            ⏳ Appeal Pending
+                        </button>
+                    <?php else: ?>
+                        <a href="sponsor_appeal_form.php?case_id=<?php echo $case_id; ?>" class="fraud-alert-btn fraud-alert-btn-primary">
+                            ✍️ Submit Appeal
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div class="container">
+                <div class="welcome-section">
+                    <h1 class="welcome-title">Welcome, <?php echo htmlspecialchars($sponsor['username']); ?>!</h1>
+                    <p class="welcome-subtitle">Choose an option to get started</p>
+                </div>
+
+                <div class="action-container">
+                    <a href="sponser_profile.php" class="action-card">
+                        <div class="action-icon">👤</div>
+                        <h2 class="action-title">My Profile</h2>
+                        <p class="action-description">View and manage your personal information and account settings</p>
+                    </a>
+
+                    <a href="my_home.php" class="action-card">
+                        <div class="preview-label">Preview</div>
+                        <div class="action-icon">🏠</div>
+                        <h2 class="action-title">My Home</h2>
+                        <p class="action-description">Access your dashboard, calendar, and sponsorship overview</p>
+                    </a>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <?php 
-    include __DIR__ . '/../components/common_scripts.php';
+    if (!$is_blocked):
+        include __DIR__ . '/../components/common_scripts.php';
+    endif;
     ?>
 
     <script>

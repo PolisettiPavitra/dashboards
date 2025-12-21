@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../db_config.php';
 require_once __DIR__ . '/../components/sidebar_config.php';
 
+
 // Check if database connection exists
 if (!isset($conn)) {
     die("Database connection failed. Please check db_config.php");
@@ -16,15 +17,16 @@ if (!isset($conn)) {
 
 $user_id = $_SESSION['user_id'];
 
-// Get sponsor information
-$query = "SELECT u.user_id, u.username, u.email, u.phone_no, u.created_at, 
-                 s.sponsor_id, s.first_name, s.last_name, s.dob, s.address, s.profile_picture
+// Get sponsor information (username, email, phone, created_at, name, dob, address, profile_picture)
+// Note: We already have sponsor_id from $access_check
+$query = "SELECT u.username, u.email, u.phone_no, u.created_at, 
+                 s.first_name, s.last_name, s.dob, s.address, s.profile_picture
           FROM users u
           INNER JOIN sponsors s ON u.user_id = s.user_id
-          WHERE u.user_id = ?";
+          WHERE s.sponsor_id = ?";
 
 $stmt = $conn->prepare($query);
-$stmt->bind_param("i", $user_id);
+$stmt->bind_param("i", $sponsor_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -33,15 +35,12 @@ if ($result->num_rows === 0) {
 }
 
 $user_data = $result->fetch_assoc();
-$sponsor_id = intval($user_data['sponsor_id']);
+// Add IDs to user_data for consistency with existing code
+$user_data['sponsor_id'] = $sponsor_id;
+$user_data['user_id'] = $user_id;
 $stmt->close();
 
-// Additional validation
-if ($sponsor_id <= 0) {
-    die("Invalid sponsor ID. Please contact administrator.");
-}
-
-// ✅ FIXED: Get dashboard statistics using children.sponsor_id (Method A)
+// ✅ FIXED: Get dashboard statistics using the sponsor_id from access check
 $stmt = $conn->prepare("SELECT COUNT(*) as count FROM children WHERE sponsor_id = ?");
 $stmt->bind_param("i", $sponsor_id);
 $stmt->execute();

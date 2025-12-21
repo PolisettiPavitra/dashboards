@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/../db_config.php';
 require __DIR__ . '/../vendor/autoload.php';
 
+
 // Check if sponsor is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../signup_and_login/login_template.php");

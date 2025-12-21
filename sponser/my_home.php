@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../db_config.php';
 require_once __DIR__ . '/../components/sidebar_config.php';
 
+
 if (!isset($conn)) {
     die("Database connection failed. Please check db_config.php");
 }

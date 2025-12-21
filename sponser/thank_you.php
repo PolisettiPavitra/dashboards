@@ -5,6 +5,8 @@ use Razorpay\Api\Api;
 session_start();
 require_once __DIR__ . '/../db_config.php';
 
+
+
 // Check if sponsor is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../signup_and_login/login_template.php");

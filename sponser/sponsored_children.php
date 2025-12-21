@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../db_config.php';
 
+
 $user_id = $_SESSION['user_id'];
 
 // ✅ FIXED: Get sponsor_id from database for the logged-in user
